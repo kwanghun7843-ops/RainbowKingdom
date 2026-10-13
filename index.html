@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#faf4e5"><meta name="description" content="친구들을 도우며 일곱 무지개 구슬을 찾는 유아용 2D 모험 게임">
+  <title>잃어버린 무지개 나라</title><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <section id="title-screen" class="screen title-screen">
+    <div class="title-cloud"><span class="eyebrow">꼬마 모험가의 첫 번째 여행</span><h1>잃어버린<br><span>무지개 나라</span></h1><p>친구를 도와 일곱 구슬을 찾아요</p></div>
+    <div class="title-actions"><button id="new-game" class="primary" disabled>모험 준비 중…</button><button id="continue-game" class="secondary" hidden>이어서 모험하기</button><p id="load-status" role="status">무지개 나라를 불러오고 있어요</p><button id="retry-load" class="secondary" hidden>다시 불러오기</button></div>
+  </section>
+  <section id="choose-screen" class="screen choose-screen" hidden>
+    <div class="choose-heading"><span class="eyebrow">우리 함께 떠나요</span><h2>어떤 모습으로 모험할까요?</h2><p>마음에 드는 친구를 눌러 주세요</p></div>
+    <div class="hero-choices"><button class="hero-card" data-hero="boy"><canvas width="280" height="300" aria-hidden="true"></canvas><strong>남자아이</strong><span>함께 모험하기 →</span></button><button class="hero-card" data-hero="girl"><canvas width="280" height="300" aria-hidden="true"></canvas><strong>여자아이</strong><span>함께 모험하기 →</span></button></div>
+    <button id="choose-back" class="quiet">처음 화면으로</button>
+  </section>
+  <section id="world-screen" class="screen world-screen" hidden>
+    <header class="topbar"><div class="brand"><span class="brand-symbol">🌈</span><div><strong>잃어버린 무지개 나라</strong><span id="place-name">중앙광장</span></div></div><div id="orb-tray" class="orb-tray" aria-label="모은 무지개 구슬"></div><div class="header-actions"><button id="sound-toggle" class="icon-button" aria-label="소리 끄기" title="소리 켜기·끄기">🔊</button><button id="fullscreen" class="icon-button" aria-label="전체 화면" title="전체 화면">⛶</button><button id="menu-button" class="icon-button" aria-label="메뉴 열기" title="메뉴">☰</button></div></header>
+    <main class="adventure"><div class="map-area"><div class="map-frame"><canvas id="world-canvas" width="1536" height="1024" tabindex="0" aria-label="모험 지도. 가고 싶은 곳을 터치하거나 방향키로 이동할 수 있어요."></canvas><div id="scene-loading" class="scene-loading" hidden><span>☁️</span><strong>몽실이 길을 안내하고 있어요…</strong></div><div class="place-pill"><span id="place-icon">🌳</span><strong id="place-title">중앙광장</strong></div><button id="hub-button" class="map-home" hidden>🏡 광장으로</button></div><div class="map-caption"><span id="map-hint">가고 싶은 곳을 톡 눌러요</span><button id="action-button" class="primary small">몽실과 이야기하기</button></div></div>
+      <aside class="journey-panel"><div class="journey-heading"><span class="eyebrow">나의 무지개 여행</span><h2>친구를 만나러 가요</h2><p id="journey-progress">구슬 0개를 찾았어요</p></div><nav id="location-list" aria-label="모험 장소"></nav><button id="tree-button" class="tree-button" hidden>🌈 무지개 나무로 가요</button><div class="guide-note"><span>☁️</span><p>길을 누르면 걸어가요.<br>친구를 누르면 이야기해요.</p></div></aside>
+    </main>
+  </section>
+</div>
+<div id="overlay" class="overlay" hidden><section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"></section></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<noscript><div class="noscript">이 모험에는 자바스크립트가 필요해요. 브라우저에서 자바스크립트를 켜 주세요.</div></noscript>
+<script type="module" src="game.mjs"></script>
+</body></html>
