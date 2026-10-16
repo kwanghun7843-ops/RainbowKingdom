@@ -1,4 +1,3 @@
-export const SAVE_KEY = 'rainbow-kingdom-v1';
 export const COLORS = ['#ef5659','#f39b35','#f2c941','#78ba69','#4daade','#666ccc','#ae7bd5'];
 export const NAMES = ['빨강','주황','노랑','초록','파랑','남색','보라'];
 export const LOCATIONS = [

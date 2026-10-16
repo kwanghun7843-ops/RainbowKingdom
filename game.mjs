@@ -1,23 +1,55 @@
 import {ASSETS,AssetBank,sprite,fitSprite,drawScene,entityAt,GATES} from './renderer.mjs';
-import {SAVE_KEY,COLORS,NAMES,LOCATIONS,newState,restoreState,collect,place,missionState,missionAction,findPath,walkable,advancePath} from './core.mjs';
+import {COLORS,NAMES,LOCATIONS,newState,collect,place,missionState,missionAction,findPath,walkable,advancePath} from './core.mjs';
 
 const $=id=>document.getElementById(id), bank=new AssetBank();
 const canvas=$('world-canvas'),ctx=canvas.getContext('2d');
-let state=newState(),saved=null,region='hub',screenName='title',player={x:.50,y:.88,direction:0,moving:false};
+let state=newState(),region='hub',screenName='opening',player={x:.50,y:.88,direction:0,moving:false};
 let route=0,busy=false,path=[],arrival=null,marker=null,activeMission=null,closing=null,lastFocus=null,festival=false,celebrate=false;
 let keys=new Set(),sound=true,audio=null,lastTime=0,toastTimer=null,loadAttempt=0;
-try{saved=restoreState(localStorage.getItem(SAVE_KEY));sound=localStorage.getItem('rainbow-sound')!=='off';}catch{}
+try{sound=localStorage.getItem('rainbow-sound')!=='off';}catch{}
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+$('opening-video').muted=!sound;
+$('opening-sound').textContent=sound?'🔊':'🔇';
+$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');
 
 function element(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,cls,action){const n=element('button',cls,text);n.addEventListener('click',action);return n;}
 function imageCanvas(id,index,w=180,h=180){const c=element('canvas');c.width=w;c.height=h;fitSprite(c.getContext('2d'),bank,id,index,w,h);c.setAttribute('aria-hidden','true');return c;}
 function stopWalking(){path=[];arrival=null;marker=null;keys.clear();player.moving=false;}
-function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));saved=restoreState(state);}catch{saved=restoreState(state);}updateHUD();}
+function save(){updateHUD();}
 function toast(text){clearTimeout(toastTimer);$('toast').textContent=text;$('toast').hidden=false;toastTimer=setTimeout(()=>{$('toast').hidden=true;},3300);}
 function speak(text){if(!sound||!('speechSynthesis'in window))return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang='ko-KR';utterance.rate=.87;utterance.pitch=1.1;const voices=window.speechSynthesis.getVoices();const voice=voices.find(v=>v.lang.startsWith('ko'));if(voice)utterance.voice=voice;window.speechSynthesis.speak(utterance);}
 function tone(success=false){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();[0,...(success?[.13,.26]:[])].forEach((offset,i)=>{const osc=audio.createOscillator(),g=audio.createGain();osc.type='sine';osc.frequency.value=[523,659,784][i];g.gain.setValueAtTime(.001,audio.currentTime+offset);g.gain.exponentialRampToValueAtTime(.10,audio.currentTime+offset+.025);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+offset+.25);osc.connect(g);g.connect(audio.destination);osc.start(audio.currentTime+offset);osc.stop(audio.currentTime+offset+.28);});}catch{}}
-function screen(name){screenName=name;['title','choose','world'].forEach(n=>{$(n+'-screen').hidden=n!==name;});stopWalking();}
+function screen(name){
+  screenName=name;
+  ['opening','title','choose','world'].forEach(n=>{$(n+'-screen').hidden=n!==name;});
+  if(name!=='opening')stopOpening();
+  stopWalking();
+}
+function stopOpening(){
+  const video=$('opening-video');
+  video.pause();
+  video.currentTime=0;
+  $('opening-play').textContent='▶ 오프닝 보기';
+  $('opening-status').textContent='해든과 라온의 이야기를 만나 볼까요?';
+}
+async function playOpening(){
+  const video=$('opening-video');
+  video.muted=!sound;
+  $('opening-status').textContent='오프닝을 재생하고 있어요';
+  $('opening-play').textContent='❚❚ 잠시 멈추기';
+  try{await video.play();}catch(error){
+    $('opening-status').textContent='재생 버튼을 한 번 더 눌러 주세요.';
+    $('opening-play').textContent='▶ 오프닝 보기';
+    console.error(error);
+  }
+}
+function toggleOpening(){
+  const video=$('opening-video');
+  if(video.paused)playOpening();
+  else {video.pause();$('opening-status').textContent='잠시 멈췄어요';$('opening-play').textContent='▶ 이어 보기';}
+}
+function finishOpening(){screen('title');}
 function closeModal(){if(activeMission?.complete)return;const fn=closing;closing=null;activeMission=null;$('overlay').hidden=true;$('modal').replaceChildren();if('speechSynthesis'in window)window.speechSynthesis.cancel();if(lastFocus?.isConnected)lastFocus.focus({preventScroll:true});fn?.();}
 function modal(title,onClose=null){stopWalking();if($('overlay').hidden)lastFocus=document.activeElement;closing=onClose;$('modal').replaceChildren();$('overlay').hidden=false;const header=element('div','modal-title-row'),heading=element('h2',null,title);heading.id='modal-title';header.append(heading,button('×','close-button',closeModal));header.lastChild.setAttribute('aria-label','닫기');$('modal').append(header);$('modal').focus({preventScroll:true});return $('modal');}
 function dismiss(){activeMission=null;closing=null;$('overlay').hidden=true;$('modal').replaceChildren();if('speechSynthesis'in window)window.speechSynthesis.cancel();}
@@ -40,13 +72,13 @@ async function boot(){
   const attempt=++loadAttempt;$('new-game').disabled=true;$('retry-load').hidden=true;$('new-game').textContent='모험 준비 중…';
   const essentials=['19-title-background','17-hero-boy-transparent','18-hero-girl-transparent','01-rainbow-orbs','02-friends','background-hub'];let n=0;
   try{await Promise.all(essentials.map(async id=>{await bank.load(id);if(attempt===loadAttempt)$('load-status').textContent='모험 준비 '+(++n)+' / '+essentials.length;}));if(attempt!==loadAttempt)return;
-    $('new-game').disabled=false;$('new-game').textContent='모험 시작하기';$('load-status').textContent='준비됐어요! 함께 떠나요';$('continue-game').hidden=!saved;
+    $('new-game').disabled=false;$('new-game').textContent='모험 시작하기';$('load-status').textContent='준비됐어요! 함께 떠나요';
     document.querySelectorAll('.hero-card').forEach(card=>fitSprite(card.querySelector('canvas').getContext('2d'),bank,card.dataset.hero==='boy'?'17-hero-boy-transparent':'18-hero-girl-transparent',24,280,300));updateHUD();
   }catch(error){if(attempt!==loadAttempt)return;$('load-status').textContent='그림을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.';$('retry-load').hidden=false;console.error(error);}
 }
-async function start(hero,resume=false){
-  dismiss();state=resume&&saved?restoreState(saved):newState(hero);festival=false;celebrate=false;screen('world');save();
-  const arrived=await navigate('hub');if(!arrived)return;if(state.finished)await endFestival(false);else if(!resume)intro();
+async function start(hero){
+  dismiss();state=newState(hero);festival=false;celebrate=false;screen('world');save();
+  const arrived=await navigate('hub');if(!arrived)return;intro();
 }
 async function navigate(id){
   if(screenName!=='world')return;const token=++route;stopWalking();dismiss();busy=true;$('scene-loading').hidden=false;
@@ -150,19 +182,21 @@ function treePlacement(){
 async function endFestival(showCard=true){
   const token=++route;busy=true;$('scene-loading').hidden=false;stopWalking();dismiss();
   try{await bank.load('20-festival-ending');if(token!==route)return;region='hub';festival=true;celebrate=true;player.x=.5;player.y=.86;busy=false;$('scene-loading').hidden=true;updateHUD();tone(true);speak('우리 함께 무지개를 되찾았어요! 이제 친구들과 축제를 즐겨요!');
-    if(showCard){const root=modal('무지개 축제가 시작됐어요!'),card=element('div','festival-card');card.append(imageCanvas('02-friends',0,120,120),element('h2',null,'우리 함께 무지개를 되찾았어요!'),element('p',null,'꽃과 과일, 노래와 별빛이 모였어요.\n친구들이 모두 여러분을 기다려요!'));root.append(card);const controls=element('div','dialog-actions');controls.append(button('축제를 구경해요','primary',dismiss),button('처음 화면으로','secondary',()=>{dismiss();screen('title');$('continue-game').hidden=!saved;}));root.append(controls);}
+    if(showCard){const root=modal('무지개 축제가 시작됐어요!'),card=element('div','festival-card');card.append(imageCanvas('02-friends',0,120,120),element('h2',null,'우리 함께 무지개를 되찾았어요!'),element('p',null,'꽃과 과일, 노래와 별빛이 모였어요.\n친구들이 모두 여러분을 기다려요!'));root.append(card);const controls=element('div','dialog-actions');controls.append(button('축제를 구경해요','primary',dismiss),button('처음 화면으로','secondary',()=>{dismiss();screen('title');}));root.append(controls);}
   }catch(error){busy=false;$('scene-loading').hidden=true;toast('축제 그림을 다시 불러올게요');dialogue(0,'몽실','무지개 구슬은 모두 돌아왔어! 축제 그림을 다시 불러와 볼까?',[{text:'다시 불러오기',primary:true,action:()=>endFestival()}]);console.error(error);}
 }
 function menu(){
   const root=modal('잠깐 쉬어 갈까요?'),list=element('div','menu-list');root.append(list);
-  list.append(button('모험으로 돌아가기','primary',closeModal),button('처음 화면으로','secondary',()=>{dismiss();save();screen('title');$('continue-game').hidden=!saved;}),button('새 모험 시작하기','secondary',()=>{dismiss();confirmNew();}));
+  list.append(button('모험으로 돌아가기','primary',closeModal),button('처음 화면으로','secondary',()=>{dismiss();screen('title');}),button('새 모험 시작하기','secondary',()=>{dismiss();confirmNew();}));
   root.append(element('p','rotate-hint','태블릿을 가로로 돌리면 더 넓게 볼 수 있어요.'));
 }
-function confirmNew(){
-  if(saved?.collected.length){const root=modal('새로운 모험을 시작할까요?');root.append(element('p','tree-guide','새로 시작하면 지금까지 모은 구슬을 처음부터 다시 찾아요.'));const row=element('div','dialog-actions');row.append(button('새로 시작하기','primary',()=>{dismiss();screen('choose');}),button('계속 모험하기','secondary',()=>{dismiss();if(screenName==='title')start(saved.hero,true);}));root.append(row);}else screen('choose');
-}
+function confirmNew(){screen('choose');}
 
-$('new-game').addEventListener('click',confirmNew);$('continue-game').addEventListener('click',()=>start(saved?.hero||'boy',true));$('retry-load').addEventListener('click',boot);
+$('new-game').addEventListener('click',confirmNew);$('retry-load').addEventListener('click',boot);
+$('opening-play').addEventListener('click',toggleOpening);$('opening-skip').addEventListener('click',finishOpening);
+$('opening-sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}$('opening-video').muted=!sound;$('opening-sound').textContent=sound?'🔊':'🔇';$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');});
+$('opening-video').addEventListener('ended',finishOpening);
+$('opening-video').addEventListener('error',()=>{$('opening-status').textContent='영상을 불러오지 못했어요. 건너뛰기를 눌러 모험을 시작할 수 있어요.';});
 $('choose-back').addEventListener('click',()=>screen('title'));document.querySelectorAll('[data-hero]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.hero)));
 $('hub-button').addEventListener('click',()=>navigate('hub'));$('tree-button').addEventListener('click',showTree);$('menu-button').addEventListener('click',menu);
 $('action-button').addEventListener('click',()=>region==='hub'?(state.collected.length===7?showTree():guide()):friend(LOCATIONS.findIndex(l=>l.id===region)));
@@ -178,7 +212,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '||e.key==='Enter'){e.preventDefault();$('action-button').click();}
 });
 document.addEventListener('keyup',e=>{const map={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};keys.delete(map[e.key]);});
-window.addEventListener('blur',()=>keys.clear());document.addEventListener('visibilitychange',()=>{keys.clear();if(document.hidden){if(screenName==='world')save();if('speechSynthesis'in window)window.speechSynthesis.cancel();}});
+window.addEventListener('blur',()=>keys.clear());document.addEventListener('visibilitychange',()=>{keys.clear();if(document.hidden&&'speechSynthesis'in window)window.speechSynthesis.cancel();});
 function animate(timestamp){
   const time=timestamp/1000,dt=Math.min((timestamp-lastTime)/1000,.045)||0;lastTime=timestamp;
   if(screenName==='world'){

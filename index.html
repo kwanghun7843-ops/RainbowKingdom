@@ -7,9 +7,24 @@
 </head>
 <body>
 <div id="app">
-  <section id="title-screen" class="screen title-screen">
+  <section id="opening-screen" class="screen opening-screen">
+    <video id="opening-video" class="opening-video" playsinline preload="metadata" poster="assets/19-title-background.png">
+      <source src="assets/opening.mp4" type="video/mp4">
+      이 브라우저에서는 오프닝 영상을 재생할 수 없어요.
+    </video>
+    <div class="opening-shade" aria-hidden="true"></div>
+    <div class="opening-controls">
+      <p id="opening-status">해든과 라온의 이야기를 만나 볼까요?</p>
+      <div class="opening-actions">
+        <button id="opening-play" class="primary">▶ 오프닝 보기</button>
+        <button id="opening-skip" class="secondary">건너뛰기</button>
+        <button id="opening-sound" class="icon-button opening-sound" aria-label="오프닝 소리 끄기" title="오프닝 소리 켜기·끄기">🔊</button>
+      </div>
+    </div>
+  </section>
+  <section id="title-screen" class="screen title-screen" hidden>
     <div class="title-cloud"><span class="eyebrow">꼬마 모험가의 첫 번째 여행</span><h1>잃어버린<br><span>무지개 나라</span></h1><p>친구를 도와 일곱 구슬을 찾아요</p></div>
-    <div class="title-actions"><button id="new-game" class="primary" disabled>모험 준비 중…</button><button id="continue-game" class="secondary" hidden>이어서 모험하기</button><p id="load-status" role="status">무지개 나라를 불러오고 있어요</p><button id="retry-load" class="secondary" hidden>다시 불러오기</button></div>
+    <div class="title-actions"><button id="new-game" class="primary" disabled>모험 준비 중…</button><p id="load-status" role="status">무지개 나라를 불러오고 있어요</p><button id="retry-load" class="secondary" hidden>다시 불러오기</button></div>
   </section>
   <section id="choose-screen" class="screen choose-screen" hidden>
     <div class="choose-heading"><span class="eyebrow">우리 함께 떠나요</span><h2>어떤 모습으로 모험할까요?</h2><p>마음에 드는 친구를 눌러 주세요</p></div>
