@@ -12,6 +12,13 @@ $('opening-video').muted=!sound;
 $('opening-sound').textContent=sound?'🔊':'🔇';
 $('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');
 
+function syncJourneyHeight(){
+  const height=$('map-frame').getBoundingClientRect().height;
+  if(height)$('journey-panel').style.setProperty('--map-height',height+'px');
+}
+if('ResizeObserver' in window)new ResizeObserver(syncJourneyHeight).observe($('map-frame'));
+window.addEventListener('resize',syncJourneyHeight);
+
 function element(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
 function button(text,cls,action){const n=element('button',cls,text);n.addEventListener('click',action);return n;}
 function imageCanvas(id,index,w=180,h=180){const c=element('canvas');c.width=w;c.height=h;fitSprite(c.getContext('2d'),bank,id,index,w,h);c.setAttribute('aria-hidden','true');return c;}

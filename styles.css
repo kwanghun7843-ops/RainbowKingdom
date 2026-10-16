@@ -65,3 +65,21 @@
   .overlay{padding:12px}.modal{width:min(900px,calc(100% - 24px));padding:15px 18px;border-radius:24px}.modal-title-row{margin-bottom:8px}.modal-title-row h2{font-size:22px}.close-button{width:42px;height:42px}.dialog-body{gap:13px;padding:0 4px}.npc-portrait{width:112px;height:112px}.dialog-text h3{margin-bottom:5px}.dialog-text p{font-size:17px;line-height:1.45}.dialog-actions,.modal-actions{margin-top:12px;gap:8px}.dialog-actions .primary,.dialog-actions .secondary,.modal-actions .primary,.modal-actions .secondary{min-height:44px;padding:9px 17px;font-size:15px}
   .topbar{min-height:58px;padding:5px 12px}.brand{min-width:150px;gap:6px}.brand-symbol{font-size:23px}.brand strong{font-size:13px}.brand div>span{margin-top:1px;font-size:10px}.orb-tray .orb{width:34px;height:34px}.orb canvas{width:30px;height:30px}.icon-button{width:42px;height:42px}.adventure{padding:8px 12px;gap:10px;grid-template-columns:minmax(0,1fr) 190px}.journey-panel{padding:10px}.journey-heading{display:none}.location-button{min-height:42px}.map-caption{padding:8px 3px 4px}.map-caption #map-hint{display:none}.primary.small{min-height:44px}
 }
+/* 가로형 태블릿의 시작 화면: 영상은 왼쪽에 온전히 보이고 조작은 오른쪽에 둡니다. */
+@media (pointer:coarse) and (min-width:701px) and (max-width:1366px) and (orientation:landscape){
+  .opening-screen{display:grid;grid-template-columns:minmax(0,1fr) clamp(132px,15vw,180px);grid-template-rows:minmax(0,1fr);gap:10px;padding:14px;background:#17233b}
+  .opening-video{position:relative;grid-column:1;grid-row:1;width:100%;height:100%;object-fit:contain;border-radius:20px;background:#0e1930}
+  .opening-shade{display:none}
+  .opening-controls{position:relative;grid-column:2;grid-row:1;align-self:stretch;width:auto;margin:0;padding:10px 4px;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;display:flex;flex-direction:column;justify-content:center}
+  .opening-controls p{font-size:13px;line-height:1.45;color:#fdf7e9;margin:0 0 13px;word-break:keep-all}
+  .opening-actions{width:100%;flex-direction:column;gap:9px}.opening-actions .primary,.opening-actions .secondary,.opening-sound{width:100%;min-height:48px;padding:9px 7px;font-size:14px;border-radius:15px}.opening-sound{font-size:22px;background:#263a5a;color:#fff}
+  .adventure{grid-template-columns:minmax(0,1fr) 176px;gap:12px;padding:14px 16px}
+  .journey-panel{height:var(--map-height,auto);max-height:var(--map-height,none);overflow-y:auto;overscroll-behavior:contain;padding:13px 10px}
+  .journey-heading h2{font-size:17px}.journey-heading p{font-size:12px}.location-button{min-height:46px;padding:6px}.location-button .location-emoji{width:30px;height:30px;font-size:21px}
+  .map-action{position:absolute;right:15px;bottom:15px;z-index:3;min-height:48px;padding:10px 16px;background:#62ad91eF;box-shadow:0 4px 0 #347b64}
+  .map-caption{min-height:35px;padding:9px 4px 0}.map-caption #map-hint{font-size:12px}
+}
+@media (pointer:coarse) and (min-width:701px) and (orientation:landscape) and (max-height:650px){
+  .opening-screen{grid-template-columns:minmax(0,1fr) 128px;gap:8px;padding:9px}.opening-video{border-radius:14px}.opening-controls{padding:5px 0}.opening-controls p{font-size:11px;margin-bottom:8px}.opening-actions{gap:6px}.opening-actions .primary,.opening-actions .secondary,.opening-sound{min-height:40px;font-size:12px;padding:6px}.opening-sound{font-size:18px}
+  .adventure{grid-template-columns:minmax(0,1fr) 158px}.journey-panel{padding:8px}.location-button{min-height:39px;font-size:12px}.location-button .location-emoji{width:27px;height:27px;font-size:19px}.map-action{right:10px;bottom:10px;min-height:42px;padding:8px 12px;font-size:13px}
+}
