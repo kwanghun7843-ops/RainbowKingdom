@@ -6,6 +6,38 @@
 @media(max-height:550px) and (min-width:701px){.topbar{min-height:62px}.adventure{padding:8px;gap:10px;grid-template-columns:minmax(0,1fr) 185px}.map-frame{height:calc(100dvh - 121px);aspect-ratio:auto}.map-frame>canvas{object-fit:contain}.journey-panel{padding:10px}.journey-heading{display:none}.location-button{min-height:40px;padding:4px 7px}.location-button small{display:none}.location-button .location-emoji{height:28px;width:28px;font-size:21px}.map-caption{padding:9px 2px 0}.hero-card canvas{width:150px;height:160px}.choose-screen{gap:12px}.mission-stage{height:220px}.dialog-body{padding:0}.npc-portrait{width:130px;height:130px}.dialog-text p{font-size:19px}.title-cloud{padding:12px 30px}.title-cloud h1{font-size:39px;margin:7px 0}.title-cloud .eyebrow{font-size:10px}.title-screen{padding:3vh 10px}.title-actions{gap:10px}.title-actions .primary{font-size:18px;padding:11px 30px;min-height:46px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 .mission-object:not(:disabled):active{transform:translate(-50%,calc(-50% + 2px))!important}
+.tablet-rotate{display:none}
+/* 태블릿: 가로 화면에서 지도와 장소 목록을 한 화면에 유지합니다. */
+@media (pointer:coarse) and (min-width:701px) and (max-width:1366px) and (orientation:landscape){
+  body{overflow:hidden;background:#edf1e6}
+  .screen{min-height:100dvh}
+  .topbar{min-height:72px;padding:8px 16px;gap:12px}
+  .brand{min-width:190px}.brand-symbol{font-size:29px}
+  .icon-button{width:48px;height:48px;border-radius:15px}
+  .orb-tray{gap:6px}.orb-tray .orb{width:40px;height:40px}.orb canvas{width:35px;height:35px}
+  .adventure{width:100%;max-width:none;grid-template-columns:minmax(0,1fr) 232px;gap:14px;padding:12px 16px}
+  .map-frame{border-radius:22px}.map-caption{padding:13px 5px 2px;font-size:13px}
+  .map-home{min-height:50px;font-size:14px}.place-pill{font-size:14px}
+  .journey-panel{padding:14px 12px;border-radius:22px}
+  .journey-heading p{margin-bottom:11px}.journey-heading h2{font-size:19px}
+  #location-list{gap:6px}.location-button{min-height:48px;padding:6px 8px;gap:8px}
+  .location-button .location-emoji{width:32px;height:32px;font-size:22px}
+  .location-button small{display:none}.guide-note{display:none}
+  .tree-button{margin-top:9px;min-height:48px;padding:9px 5px}
+  .primary,.secondary{min-height:50px}.primary.small{min-height:48px;font-size:15px;padding:10px 17px}
+  .modal{width:min(920px,calc(100% - 48px));max-height:calc(100dvh - 30px);padding:22px}
+  .mission-stage{height:min(47vh,390px)}
+  .opening-video{object-fit:contain}
+  .opening-controls{width:min(780px,calc(100% - 64px));margin-bottom:4vh}
+}
+/* 태블릿을 세로로 들면 게임 대신 간단한 가로 회전 안내를 보여 줍니다. */
+@media (pointer:coarse) and (min-width:700px) and (orientation:portrait){
+  .tablet-rotate{position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:28px;background:linear-gradient(145deg,#243a58,#5b7794);color:#fff;text-align:center}
+  .rotate-card{max-width:440px;padding:34px 28px;border:2px solid #ffffff5c;border-radius:30px;background:#ffffff18;box-shadow:0 16px 50px #10233b80;backdrop-filter:blur(7px)}
+  .rotate-card span{display:block;font-size:70px;line-height:1;margin-bottom:20px;animation:tablet-tilt 1.8s ease-in-out infinite}
+  .rotate-card strong{display:block;font-size:24px;word-break:keep-all}.rotate-card p{margin-top:13px;font-size:16px;line-height:1.65;word-break:keep-all}
+}
+@keyframes tablet-tilt{0%,100%{transform:rotate(0)}50%{transform:rotate(-90deg)}}
 .opening-screen{position:relative;min-height:100dvh;display:grid;place-items:center;overflow:hidden;background:#182238}
 .opening-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#182238}
 .opening-shade{position:absolute;inset:0;background:linear-gradient(180deg,#101b35aa 0%,transparent 38%,#101b35cc 100%);pointer-events:none}
@@ -15,3 +47,4 @@
 .opening-actions .primary,.opening-actions .secondary{min-height:49px;padding:12px 23px;font-size:17px}
 .opening-sound{width:49px;height:49px;background:#f5ecda}
 @media(max-width:700px){.opening-controls{margin-bottom:22px;padding:14px 15px;border-radius:21px}.opening-controls p{font-size:14px}.opening-actions{gap:8px}.opening-actions .primary,.opening-actions .secondary{font-size:15px;padding:11px 16px}.opening-sound{width:44px;height:44px}}
+@media (pointer:coarse) and (min-width:701px) and (max-width:1366px) and (orientation:landscape){.opening-video{object-fit:contain}.opening-controls{width:min(780px,calc(100% - 64px));margin-bottom:4vh}}
