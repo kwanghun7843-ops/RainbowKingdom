@@ -69,7 +69,7 @@ function updateHUD(){
   $('journey-progress').textContent='구슬 '+state.collected.length+'개를 찾았어요';
   $('tree-button').hidden=state.collected.length!==7;$('tree-button').textContent=state.finished?'🌈 무지개 축제를 다시 봐요':'🌈 무지개 나무로 가요';
   const list=$('location-list');list.replaceChildren();
-  LOCATIONS.forEach((l,i)=>{const b=button('','location-button'+(region===l.id?' active':''),()=>navigate(l.id));b.setAttribute('aria-label',l.name+(state.collected.includes(i)?', 구슬 찾음':''));b.append(element('span','location-emoji',l.icon));const t=element('span');t.append(element('strong',null,l.name),element('small',null,l.verb));b.append(t,element('span','check',state.collected.includes(i)?'✓':'›'));list.append(b);});
+  LOCATIONS.forEach((l,i)=>{const b=button('','location-button'+(region===l.id?' active':''),()=>navigate(l.id));const label=l.name+(state.collected.includes(i)?', 구슬 찾음':'');b.setAttribute('aria-label',label);b.title=label;b.append(element('span','location-emoji',l.icon));const t=element('span','location-copy');t.append(element('strong',null,l.name),element('small',null,l.verb));b.append(t,element('span','check',state.collected.includes(i)?'✓':'›'));list.append(b);});
   const l=LOCATIONS.find(l=>l.id===region);$('place-name').textContent=l?.name||'중앙광장';$('place-title').textContent=l?.name||(festival?'무지개 축제':'중앙광장');$('place-icon').textContent=l?.icon||'🌳';$('hub-button').hidden=region==='hub';
   $('action-button').textContent=region==='hub'?(state.collected.length===7?'무지개 나무로 가요':'몽실과 이야기하기'):(state.collected.includes(LOCATIONS.indexOf(l))?'친구와 이야기하기':'친구를 도와요');
   $('map-hint').textContent=festival?'무지개 나라에 색이 돌아왔어요!':region==='hub'?'장소 그림을 톡 누르면 걸어가요':'친구를 톡 누르거나 길을 걸어 봐요';
