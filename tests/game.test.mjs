@@ -11,7 +11,7 @@ function win(id){const m=missionState(id);
   if(id==='forest'){for(let i=0;i<4;i++)missionAction(m,'material',i);missionAction(m,'repair');}
   if(id==='pond')for(let i=0;i<3;i++)missionAction(m,'branch',i);
   if(id==='night')for(let i=0;i<6;i++)missionAction(m,'star',i);
-  if(id==='castle')for(let i=0;i<3;i++)missionAction(m,'symbol',i);
+  if(id==='castle')for(const symbol of m.sequence)missionAction(m,'symbol',symbol);
   return m;
 }
 test('all seven missions lead to one collectible each and a complete festival',()=>{
@@ -25,7 +25,16 @@ test('repeated taps and incorrect actions do not grant progress',()=>{
   missionAction(f,'tool');missionAction(f,'flower',0);missionAction(f,'flower',0);assert.equal(f.done.length,1);
   const h=missionState('hill');missionAction(h,'piece',0);assert.equal(missionAction(h,'slot',1).gentle,true);assert.equal(h.done.length,0);missionAction(h,'slot',0);assert.equal(h.done.length,1);
   const nest=missionState('forest');assert.equal(missionAction(nest,'repair').gentle,true);assert.equal(nest.complete,false);
-  const music=missionState('castle');assert.equal(missionAction(music,'symbol',2).gentle,true);assert.equal(music.step,0);
+  const music=missionState('castle');assert.equal(missionAction(music,'symbol',0).gentle,true);assert.equal(music.step,0);
+});
+test('drag, swipe, sequence and memory actions complete all seven stages',()=>{
+  const flower=missionState('flower');for(let i=0;i<3;i++)missionAction(flower,'water',i);assert.equal(flower.complete,true);
+  const orchard=missionState('orchard');for(let i=0;i<3;i++)missionAction(orchard,'fruit',i);assert.equal(orchard.complete,true);
+  const hill=missionState('hill');for(let i=0;i<3;i++)missionAction(hill,'place',i);assert.equal(hill.complete,true);
+  const forest=missionState('forest');for(let i=0;i<4;i++)missionAction(forest,'material',i);missionAction(forest,'repair');assert.equal(forest.complete,true);
+  const pond=missionState('pond');for(let i=0;i<3;i++)missionAction(pond,'branch',i);assert.equal(pond.complete,true);
+  const night=missionState('night');assert.equal(missionAction(night,'star',1).gentle,true);assert.equal(night.done.length,0);for(let i=0;i<6;i++)missionAction(night,'star',i);assert.equal(night.complete,true);
+  const castle=missionState('castle');for(const symbol of castle.sequence)missionAction(castle,'symbol',symbol);assert.equal(castle.complete,true);
 });
 test('damaged or incompatible saves cannot finish the game or duplicate balls',()=>{
   assert.equal(restoreState('not json'),null);assert.equal(restoreState({version:2}),null);
