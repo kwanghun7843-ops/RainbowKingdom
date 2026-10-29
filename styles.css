@@ -141,3 +141,19 @@
   .location-button{min-height:40px;border-radius:12px}.location-button .location-emoji{width:32px;height:32px;font-size:22px;border-radius:10px}
   .map-action{right:9px;bottom:9px;min-height:42px;padding:8px 12px;font-size:13px}
 }
+/* v0.8: 스테이지에서 누른 채 끌기·밀기·순서 기억하기를 사용합니다. */
+.mission-stage{touch-action:none}
+.mission-object:disabled{opacity:1}
+.mission-object.draggable,.trail-wand{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;z-index:5;filter:drop-shadow(0 5px 4px #4d40242f)}
+.mission-object.draggable.dragging,.trail-wand.dragging{cursor:grabbing;z-index:9;filter:drop-shadow(0 10px 7px #3b2c2855);transform:translate(-50%,-50%) scale(1.09)!important}
+.draggable-hint{outline:4px solid #fff3a6;outline-offset:2px;animation:drag-hint 1.4s ease-in-out infinite}
+.drop-zone{outline:4px dashed #64b896;outline-offset:4px;background:#effbe5b8!important;box-shadow:0 0 0 8px #fff9bd55}
+.target-star{outline-color:#ffe071;background:#fff3a633!important;animation:target-glow 1.05s ease-in-out infinite}
+.sequence-badge{position:absolute;right:5%;top:4%;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#fff8d7;color:#59482e;border:2px solid #e2ba44;font-size:15px;font-weight:900;box-shadow:0 2px 0 #967b38;pointer-events:none}
+.trail-wand{position:absolute;width:64px;height:64px;transform:translate(-50%,-50%);border-radius:50%;display:grid;place-items:center;background:#fff9c9;border:4px solid #f5cc55;font-size:31px;box-shadow:0 0 24px #fff28e}
+.memory-card{outline:4px solid #f6d676;outline-offset:2px;background:#fff9d9!important;animation:memory-pop .55s ease both}
+.memory-back{position:absolute;top:18%;transform:translate(-50%,-50%);width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:#ece7ff;border:3px solid #9f8fce;color:#6d5c9e;font-size:25px;font-weight:900;box-shadow:0 4px 0 #cfc5e8}
+@keyframes drag-hint{0%,100%{outline-color:#fff3a6}50%{outline-color:#69bf9c}}
+@keyframes target-glow{0%,100%{box-shadow:0 0 0 7px #fff4a733}50%{box-shadow:0 0 0 13px #fff4a777}}
+@keyframes memory-pop{from{transform:translate(-50%,-50%) scale(.7)}to{transform:translate(-50%,-50%) scale(1)}}
+@media (pointer:coarse){.mission-object.draggable,.trail-wand{cursor:default}}

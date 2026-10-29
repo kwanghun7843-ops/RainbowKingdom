@@ -112,13 +112,27 @@ function friend(index){const l=LOCATIONS[index],done=state.collected.includes(in
 function missionObject(stage,id,frame,x,y,w,h,action,label,classes='',disabled=false){
   const b=button('','mission-object '+classes,action||(()=>{}));b.style.cssText=`left:${x}%;top:${y}%;width:${w}%;height:${h}%;transform:translate(-50%,-50%)`;b.setAttribute('aria-label',label);b.disabled=disabled;b.append(imageCanvas(id,frame,210,210));stage.append(b);return b;
 }
+function makeDraggable(node,stage,onDrop){
+  const home={left:node.style.left,top:node.style.top};let dragging=false,pointerId=null;
+  node.classList.add('draggable');
+  const point=e=>{const r=stage.getBoundingClientRect();return{x:Math.max(2,Math.min(98,(e.clientX-r.left)/r.width*100)),y:Math.max(3,Math.min(97,(e.clientY-r.top)/r.height*100))};};
+  const move=e=>{if(!dragging||e.pointerId!==pointerId)return;const p=point(e);node.style.left=p.x+'%';node.style.top=p.y+'%';e.preventDefault();};
+  const finish=e=>{if(!dragging||e.pointerId!==pointerId)return;dragging=false;node.classList.remove('dragging');const p=point(e),success=onDrop(p.x,p.y);if(!success){node.style.left=home.left;node.style.top=home.top;tone();toast('그림이 반짝이는 곳까지 끌어 주세요');}e.preventDefault();};
+  node.addEventListener('pointerdown',e=>{if(node.disabled)return;dragging=true;pointerId=e.pointerId;node.setPointerCapture?.(pointerId);node.classList.add('dragging');e.preventDefault();});
+  node.addEventListener('pointermove',move);node.addEventListener('pointerup',finish);node.addEventListener('pointercancel',finish);
+  return node;
+}
+function inBox(x,y,cx,cy,rx,ry){return Math.abs(x-cx)<=rx&&Math.abs(y-cy)<=ry;}
+function scheduleCastlePreview(current){
+  clearTimeout(current.previewTimer);current.previewTimer=setTimeout(()=>{if(activeMission!==current)return;current.previewing=false;renderMission();speak('방금 본 별, 달, 구름의 순서를 기억해서 눌러 줘.');},reduced?900:2600);
+}
 function openMission(index){
-  const l=LOCATIONS[index];activeMission={index,model:missionState(l.id)};renderMission();speak(l.intro);
+  const l=LOCATIONS[index],current={index,model:missionState(l.id),previewing:l.id==='castle',previewTimer:null};activeMission=current;renderMission();if(current.previewing)scheduleCastlePreview(current);speak(l.intro);
 }
 function act(action,value){
   const current=activeMission;if(!current)return;
   const result=missionAction(current.model,action,value);
-  if(result.gentle){tone();speak(current.model.id==='flower'?'먼저 물뿌리개를 눌러 줘.':current.model.id==='forest'?'가지와 잎을 모두 모아 보자.':'같은 그림을 찾아보자. 괜찮아, 다시 해 보자!');toast(current.model.id==='flower'?'물뿌리개를 먼저 눌러요':current.model.id==='forest'?'가지와 잎을 모두 모아 주세요':'같은 모양을 찾아 다시 눌러요');return;}
+  if(result.gentle){tone();if(current.model.id==='castle'){current.previewing=true;renderMission();scheduleCastlePreview(current);speak('괜찮아. 순서를 다시 보여 줄게.');toast('순서를 다시 보여 줄게요');}else{speak(current.model.id==='night'?'숫자 순서대로 별등을 밝혀 보자.':'반짝이는 자리에 그림을 끌어다 놓아 보자.');toast(current.model.id==='night'?'숫자 순서대로 연결해요':'맞는 자리에 다시 끌어 보세요');}return;}
   if(result.changed)tone();renderMission();
   if(result.complete){tone(true);setTimeout(()=>{if(activeMission===current)reward(current.index);},reduced?200:750);}
 }
@@ -126,46 +140,48 @@ function renderMission(){
   const current=activeMission;if(!current)return;const {index,model:m}=current,l=LOCATIONS[index],P=l.props;
   const remembered=document.activeElement?.getAttribute('aria-label');
   const root=modal(l.name+'에서 놀아요');activeMission=current;
-  const instructions={flower:m.selected?'꽃을 톡 눌러 물을 주어요':'물뿌리개를 먼저 눌러요',orchard:'과일을 찾아 톡 눌러요',hill:m.selected===null?'그림 조각을 먼저 눌러요':'같은 모양의 빈자리를 눌러요',forest:m.done.length===4?'이제 둥지를 눌러 고쳐요':'가지와 잎을 톡 눌러 모아요',pond:'물길을 막은 가지를 톡 눌러요',night:'별등을 톡 눌러 깨워요',castle:'왼쪽 위의 그림과 같은 버튼을 눌러요'};
+  const instructions={flower:'물뿌리개를 꽃까지 끌어서 물을 주어요',orchard:'과일을 바구니까지 끌어 담아요',hill:'조각을 같은 모양의 자리에 끌어다 놓아요',forest:'가지와 잎을 둥지까지 옮겨 포근하게 만들어요',pond:'나뭇가지를 물길 밖으로 밀어내요',night:'반짝이를 숫자 순서대로 별등까지 끌어요',castle:current.previewing?'나오는 그림의 순서를 잘 기억해요':'기억한 순서대로 그림 버튼을 눌러요'};
   root.append(element('p','mission-instruction',m.complete?'참 잘했어요!':instructions[l.id]));const stage=element('div','mission-stage');root.append(stage);
   const obj=(f,x,y,w,h,a,label,cls='',dis=false)=>missionObject(stage,P,f,x,y,w,h,a,label,cls,dis||m.complete);
   if(l.id==='flower'){
-    [.20,.50,.80].forEach((x,i)=>obj(m.done.includes(i)?2:1,x*100,40,24,55,()=>act('flower',i),i+1+'번째 꽃',m.done.includes(i)?'':'selectable'));
-    obj(0,50,82,27,34,()=>act('tool'), '물뿌리개',m.selected?'selected':'selectable');
+    const flowers=[20,50,80];flowers.forEach((x,i)=>obj(m.done.includes(i)?2:1,x,35,24,48,null,i+1+'번째 꽃',m.done.includes(i)?'done':'drop-zone',true));
+    if(!m.complete){const can=obj(0,50,82,25,30,null,'끌어서 물을 주는 물뿌리개','draggable-hint');makeDraggable(can,stage,(x,y)=>{const i=flowers.findIndex((fx,n)=>!m.done.includes(n)&&inBox(x,y,fx,35,13,25));if(i<0)return false;act('water',i);return true;});}
   }
   if(l.id==='orchard'){
-    [[17,25],[80,27],[49,20]].forEach(([x,y],i)=>{if(!m.done.includes(i))obj(i%2,x,y,23,29,()=>act('fruit',i),'과일 '+(i+1),'fruit');});
-    obj(m.complete?3:2,50,73,37,50,null,'과일 바구니','',true);
+    [[17,23],[82,24],[49,18]].forEach(([x,y],i)=>{if(!m.done.includes(i)){const fruit=obj(i%2,x,y,21,25,null,'바구니에 넣을 과일 '+(i+1),'fruit draggable-hint');makeDraggable(fruit,stage,(px,py)=>{if(!inBox(px,py,50,73,21,25))return false;act('fruit',i);return true;});}});
+    obj(m.complete?3:2,50,73,39,49,null,'과일 바구니','drop-zone',true);
     if(!m.complete)m.done.forEach((i,n)=>obj(i%2,42+n*8,69,10,15,null,'바구니에 담은 과일','',true));
   }
   if(l.id==='hill'){
     obj(m.complete?1:0,50,22,35,40,null,'해님 그림','',true);
-    [.20,.50,.80].forEach((x,i)=>{
-      const slot=obj(i+2,x*100,52,23,25,()=>act('slot',i),'그림 조각 '+(i+1)+'의 자리','selectable');slot.style.opacity=m.done.includes(i)?'1':'.35';slot.style.borderStyle='dashed';
-      if(!m.done.includes(i))obj(i+2,x*100,83,23,26,()=>act('piece',i),'그림 조각 '+(i+1),m.selected===i?'selected':'selectable');
+    [20,50,80].forEach((x,i)=>{
+      const slot=obj(i+2,x,50,22,23,null,'그림 조각 '+(i+1)+'의 자리','drop-zone',true);slot.style.opacity=m.done.includes(i)?'1':'.30';slot.style.borderStyle='dashed';
+      if(!m.done.includes(i)){const piece=obj(i+2,x,83,21,24,null,'옮길 그림 조각 '+(i+1),'draggable-hint');makeDraggable(piece,stage,(px,py)=>{if(!inBox(px,py,x,50,13,16))return false;act('place',i);return true;});}
     });
   }
   if(l.id==='forest'){
-    [14,38,62,86].forEach((x,i)=>{if(!m.done.includes(i))obj(i+2,x,23,22,28,()=>act('material',i),i<2?'나뭇가지 '+(i+1):'나뭇잎 '+(i-1),'selectable');});
-    obj(m.complete?1:0,50,68,43,51,()=>act('repair'),'새 둥지',m.done.length===4?'selected':'');
+    [14,38,62,86].forEach((x,i)=>{if(!m.done.includes(i)){const material=obj(i+2,x,22,21,25,null,i<2?'옮길 나뭇가지 '+(i+1):'옮길 나뭇잎 '+(i-1),'draggable-hint');makeDraggable(material,stage,(px,py)=>{if(!inBox(px,py,50,69,24,25))return false;act('material',i);return true;});}});
+    obj(m.complete?1:0,50,69,45,49,null,'고칠 새 둥지','drop-zone',true);
   }
   if(l.id==='pond'){
     stage.style.background='linear-gradient(90deg,#e7f0dc 0 29%,#c6e9f1 29% 68%,#e7f0dc 68%)';
-    [0,1,2].forEach(i=>obj(i,m.done.includes(i)?86:49,23+i*27,m.done.includes(i)?23:54,25,()=>act('branch',i),'나뭇가지 '+(i+1),'',m.done.includes(i)));
+    [0,1,2].forEach(i=>{if(m.done.includes(i))obj(i,i%2?14:86,23+i*27,22,22,null,'물길 밖의 나뭇가지 '+(i+1),'done',true);else{const branch=obj(i,49,23+i*27,50,23,null,'밖으로 밀어낼 나뭇가지 '+(i+1),'draggable-hint');makeDraggable(branch,stage,(x)=>{if(x>27&&x<73)return false;act('branch',i);return true;});}});
     if(m.complete)obj(3,49,57,28,50,null,'흐르는 물','',true);
   }
   if(l.id==='night'){
     stage.style.background='linear-gradient(160deg,#454c83,#8582b1)';
-    [0,1,2,3,4,5].forEach(i=>obj(m.done.includes(i)?1:0,18+(i%3)*32,i<3?27:75,25,45,()=>act('star',i),(i+1)+'번째 별등'));
+    const stars=[[18,25],[50,22],[82,25],[82,74],[50,77],[18,74]];stars.forEach(([x,y],i)=>{const star=obj(m.done.includes(i)?1:0,x,y,22,38,null,(i+1)+'번째 별등',i===m.done.length?'drop-zone target-star':'',true);const badge=element('span','sequence-badge',String(i+1));star.append(badge);});
+    if(!m.complete){const wand=button('✨','trail-wand',()=>{});wand.setAttribute('aria-label',(m.done.length+1)+'번째 별등으로 끌 반짝이');wand.style.cssText='left:50%;top:50%';stage.append(wand);makeDraggable(wand,stage,(x,y)=>{const target=stars[m.done.length];if(!inBox(x,y,target[0],target[1],13,19))return false;act('star',m.done.length);return true;});}
   }
   if(l.id==='castle'){
-    obj(m.complete?1:0,52,41,43,48,null,'오르골','',true);
-    if(!m.complete)obj(2+m.step,15,19,18,26,null,'지금 찾을 그림','selectable',true);
-    [0,1,2].forEach(i=>obj(i+2,22+i*28,81,23,29,()=>act('symbol',i),['별 버튼','달 버튼','구름 버튼'][i],'selectable'));
+    obj(m.complete?1:0,50,45,38,43,null,'오르골','',true);
+    if(current.previewing)m.sequence.forEach((symbol,i)=>obj(symbol+2,25+i*25,18,17,20,null,(i+1)+'번째 기억 그림','memory-card',true));
+    else if(!m.complete)[25,50,75].forEach((x,i)=>{const card=element('span','memory-back',i<m.step?'✓':'?');card.style.left=x+'%';stage.append(card);});
+    [0,1,2].forEach(i=>obj(i+2,22+i*28,82,22,26,()=>act('symbol',i),['별 버튼','달 버튼','구름 버튼'][i],current.previewing?'':'selectable',current.previewing));
     if(m.complete)obj(5,83,25,16,28,null,'음악','',true);
   }
   const max=l.id==='night'?6:l.id==='forest'?4:3,count=l.id==='castle'?m.step:m.done.length,dots=element('div','mission-progress');for(let i=0;i<max;i++)dots.append(element('span','progress-dot'+(i<count?' done':'')));dots.setAttribute('aria-label',max+'개 중 '+count+'개 완료');root.append(dots);
-  root.append(element('p','mission-helper','틀려도 괜찮아요. 천천히 다시 해 보아요.'));
+  root.append(element('p','mission-helper',l.id==='castle'?'틀려도 괜찮아요. 그림 순서를 다시 보여 줄게요.':'그림을 손가락으로 누른 채 반짝이는 자리까지 움직여요.'));
   const controls=element('div','modal-actions');controls.append(button('🔈 다시 듣기','quiet',()=>speak(instructions[l.id])));root.append(controls);
   if(m.complete)root.querySelector('.close-button').disabled=true;
   if(remembered)Array.from(root.querySelectorAll('button')).find(b=>b.getAttribute('aria-label')===remembered&&!b.disabled)?.focus({preventScroll:true});

@@ -1,1 +1,1 @@
-{"name":"lost-rainbow-kingdom","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","check":"node --check game.mjs && node --check renderer.mjs && node --check core.mjs"}}
+{"name":"lost-rainbow-kingdom","version":"0.2.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","check":"node --check game.mjs && node --check renderer.mjs && node --check core.mjs"}}

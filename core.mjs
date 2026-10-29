@@ -29,7 +29,7 @@ export function place(state,index) {
   state.placed.push(index); state.finished=state.placed.length===7; return true;
 }
 export function missionState(id) {
-  return {id,done:[],selected:null,step:0,complete:false};
+  return {id,done:[],selected:null,step:0,complete:false,sequence:id==='castle'?[2,0,1]:[]};
 }
 export function missionAction(m,action,value) {
   if(m.complete) return {changed:false,complete:true};
@@ -38,19 +38,27 @@ export function missionAction(m,action,value) {
   if(m.id==='flower') {
     if(action==='tool'){m.selected='water';changed=true;}
     if(action==='flower'){if(m.selected==='water')mark(value,3);else gentle=true;}
+    if(action==='water')mark(value,3);
     m.complete=m.done.length===3;
   } else if(m.id==='orchard') {if(action==='fruit')mark(value,3);m.complete=m.done.length===3;}
   else if(m.id==='hill') {
     if(action==='piece'&&[0,1,2].includes(value)&&!m.done.includes(value)){m.selected=value;changed=true;}
     if(action==='slot'){if(value===m.selected){mark(value,3);m.selected=null;}else gentle=true;}
+    if(action==='place')mark(value,3);
     m.complete=m.done.length===3;
   } else if(m.id==='forest') {
     if(action==='material')mark(value,4);
     if(action==='repair'){if(m.done.length===4){m.complete=true;changed=true;}else gentle=true;}
   } else if(m.id==='pond') {if(action==='branch')mark(value,3);m.complete=m.done.length===3;}
-  else if(m.id==='night') {if(action==='star')mark(value,6);m.complete=m.done.length===6;}
+  else if(m.id==='night') {
+    if(action==='star'){
+      if(value===m.done.length)mark(value,6);else gentle=true;
+    }
+    m.complete=m.done.length===6;
+  }
   else if(m.id==='castle'&&action==='symbol') {
-    if(value===m.step){m.step++;changed=true;m.complete=m.step===3;}else gentle=true;
+    if(value===m.sequence[m.step]){m.step++;changed=true;m.complete=m.step===m.sequence.length;}
+    else{m.step=0;changed=true;gentle=true;}
   }
   return {changed,gentle,complete:m.complete};
 }
