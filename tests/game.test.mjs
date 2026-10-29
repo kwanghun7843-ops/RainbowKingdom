@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {LOCATIONS,newState,restoreState,collect,place,missionState,missionAction,findPath,walkable,advancePath} from '../core.mjs';
+import {LOCATIONS,newState,restoreState,collect,place,missionState,missionAction,findPath,walkable,advancePath,normalizedPoint} from '../core.mjs';
 import {ASSETS,GATES,entityAt,fitSprite} from '../renderer.mjs';
 
 function win(id){const m=missionState(id);
@@ -39,8 +39,12 @@ test('every region, friend and portal is reachable without walking into obstacle
     const player={...start,moving:false,direction:0};let steps=0;while(path.length&&steps++<6000)advancePath(player,path,.045);assert.equal(path.length,0,region+' movement must arrive at low frame rate');
   }
 });
-test('character face and tree trunk respond to taps',()=>{
-  const s=newState();assert.equal(entityAt('flower',s,.48,.54)?.type,'friend');assert.equal(entityAt('hub',s,.50,.45)?.type,'tree');
+test('large friend targets respond and the tree activates only after all balls are found',()=>{
+  const s=newState();assert.equal(entityAt('flower',s,.53,.50)?.type,'friend');assert.notEqual(entityAt('hub',s,.50,.45)?.type,'tree');
+  for(let i=0;i<7;i++)collect(s,i);assert.equal(entityAt('hub',s,.50,.45)?.type,'tree');
+});
+test('stretched tablet canvas maps taps directly to visible positions',()=>{
+  const rect={left:100,top:50,width:1000,height:400};assert.deepEqual(normalizedPoint(rect,600,250),{x:.5,y:.5});assert.deepEqual(normalizedPoint(rect,100,50),{x:0,y:0});
 });
 test('all asset files and sprite rectangles exist within PNG bounds',()=>{
   for(const a of Object.values(ASSETS)){assert.ok(fs.existsSync(new URL('../'+a.file,import.meta.url)),a.id);
