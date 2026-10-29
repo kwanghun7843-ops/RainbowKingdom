@@ -1,5 +1,5 @@
 import {ASSETS,AssetBank,sprite,fitSprite,drawScene,entityAt,GATES} from './renderer.mjs';
-import {COLORS,NAMES,LOCATIONS,newState,collect,place,missionState,missionAction,findPath,walkable,advancePath} from './core.mjs';
+import {COLORS,NAMES,LOCATIONS,newState,collect,place,missionState,missionAction,findPath,walkable,advancePath,normalizedPoint} from './core.mjs';
 
 const $=id=>document.getElementById(id), bank=new AssetBank();
 const canvas=$('world-canvas'),ctx=canvas.getContext('2d');
@@ -8,7 +8,9 @@ let route=0,busy=false,path=[],arrival=null,marker=null,activeMission=null,closi
 let keys=new Set(),sound=true,audio=null,lastTime=0,toastTimer=null,loadAttempt=0;
 try{sound=localStorage.getItem('rainbow-sound')!=='off';}catch{}
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-$('opening-video').muted=!sound;
+const openingVideo=$('opening-video');
+openingVideo.muted=!sound;
+openingVideo.volume=1;
 $('opening-sound').textContent=sound?'🔊':'🔇';
 $('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');
 
@@ -34,15 +36,16 @@ function screen(name){
   stopWalking();
 }
 function stopOpening(){
-  const video=$('opening-video');
+  const video=openingVideo;
   video.pause();
   video.currentTime=0;
-  $('opening-play').textContent='▶ 오프닝 보기';
-  $('opening-status').textContent='해든과 라온의 이야기를 만나 볼까요?';
+  $('opening-play').textContent='▶ 오프닝 재생';
+  $('opening-status').textContent='재생을 누르면 소리와 함께 시작해요';
 }
 async function playOpening(){
-  const video=$('opening-video');
+  const video=openingVideo;
   video.muted=!sound;
+  video.volume=1;
   $('opening-status').textContent='오프닝을 재생하고 있어요';
   $('opening-play').textContent='❚❚ 잠시 멈추기';
   try{await video.play();}catch(error){
@@ -52,7 +55,7 @@ async function playOpening(){
   }
 }
 function toggleOpening(){
-  const video=$('opening-video');
+  const video=openingVideo;
   if(video.paused)playOpening();
   else {video.pause();$('opening-status').textContent='잠시 멈췄어요';$('opening-play').textContent='▶ 이어 보기';}
 }
@@ -92,7 +95,7 @@ async function navigate(id){
   const l=LOCATIONS.find(l=>l.id===id);
   try{await Promise.all((l?[l.asset,l.props]:['background-hub']).map(k=>bank.load(k)));if(token!==route)return;
     region=l?id:'hub';festival=false;celebrate=false;player.x=.50;player.y=.88;player.direction=0;busy=false;$('scene-loading').hidden=true;updateHUD();canvas.focus({preventScroll:true});
-    if(l)speak(l.name+'에 도착했어. '+l.friend+'를 만나 보자!');return true;
+    if(l){tone();toast(l.name+'에 도착했어요!');speak(l.name+'에 도착했어. '+l.friend+'를 만나 보자!');}return true;
   }catch(error){if(token!==route)return false;busy=false;$('scene-loading').hidden=true;dialogue(0,'몽실','이곳의 그림을 아직 불러오지 못했어. 다시 불러와 볼까?',[{text:'다시 불러오기',primary:true,action:()=>navigate(id)},{text:'광장으로',action:()=>navigate('hub')}]);console.error(error);return false;}
 }
 function walkTo(x,y,onArrive=null){if(busy||!$('overlay').hidden)return;const p=findPath(region,player,{x,y});if(!p.length){toast('가까운 길을 톡 눌러 주세요');return;}path=p;arrival=onArrive;marker=p.at(-1);}
@@ -201,7 +204,7 @@ function confirmNew(){screen('choose');}
 
 $('new-game').addEventListener('click',confirmNew);$('retry-load').addEventListener('click',boot);
 $('opening-play').addEventListener('click',toggleOpening);$('opening-skip').addEventListener('click',finishOpening);
-$('opening-sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}$('opening-video').muted=!sound;$('opening-sound').textContent=sound?'🔊':'🔇';$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');});
+$('opening-sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}openingVideo.muted=!sound;openingVideo.volume=1;$('opening-sound').textContent=sound?'🔊':'🔇';$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');$('opening-status').textContent=sound?'소리를 켰어요':'소리를 껐어요';});
 $('opening-video').addEventListener('ended',finishOpening);
 $('opening-video').addEventListener('error',()=>{$('opening-status').textContent='영상을 불러오지 못했어요. 건너뛰기를 눌러 모험을 시작할 수 있어요.';});
 $('choose-back').addEventListener('click',()=>screen('title'));document.querySelectorAll('[data-hero]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.hero)));
@@ -209,7 +212,7 @@ $('hub-button').addEventListener('click',()=>navigate('hub'));$('tree-button').a
 $('action-button').addEventListener('click',()=>region==='hub'?(state.collected.length===7?showTree():guide()):friend(LOCATIONS.findIndex(l=>l.id===region)));
 $('sound-toggle').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}if(!sound&&'speechSynthesis'in window)window.speechSynthesis.cancel();updateHUD();});
 $('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();return;}await document.documentElement.requestFullscreen();try{await window.screen.orientation?.lock('landscape');}catch{}}catch{toast('태블릿을 가로로 돌리면 더 넓게 보여요');}});
-function canvasPoint(event){const r=canvas.getBoundingClientRect(),scale=Math.min(r.width/1536,r.height/1024),left=r.left+(r.width-1536*scale)/2,top=r.top+(r.height-1024*scale)/2;return {x:(event.clientX-left)/(1536*scale),y:(event.clientY-top)/(1024*scale)};}
+function canvasPoint(event){return normalizedPoint(canvas.getBoundingClientRect(),event.clientX,event.clientY);}
 canvas.addEventListener('pointerdown',e=>{if(screenName!=='world'||busy||!$('overlay').hidden||festival)return;e.preventDefault();canvas.focus({preventScroll:true});const p=canvasPoint(e);if(p.x<0||p.y<0||p.x>1||p.y>1)return;const target=entityAt(region,state,p.x,p.y);walkTo(target?.x??p.x,target?.y??p.y,target?()=>interact(target):null);});
 document.addEventListener('keydown',e=>{
   if(!$('overlay').hidden){if(e.key==='Escape'){e.preventDefault();closeModal();}if(e.key==='Tab'){const focusable=Array.from($('modal').querySelectorAll('button:not(:disabled)'));const first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement===$('modal'))){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}return;}
@@ -228,7 +231,7 @@ function animate(timestamp){
       let dx=0,dy=0;
       if(keys.size){dx=(keys.has('right')?1:0)-(keys.has('left')?1:0);dy=(keys.has('down')?1:0)-(keys.has('up')?1:0);}
       else if(path.length){if(advancePath(player,path,dt)){const callback=arrival;arrival=null;marker=null;callback?.();}}
-      if(dx||dy){const length=Math.hypot(dx,dy),speed=215*dt;dx=dx/length*speed;dy=dy/length*speed;const nx=player.x+dx/1536,ny=player.y+dy/1024;
+      if(dx||dy){const length=Math.hypot(dx,dy),speed=180*dt;dx=dx/length*speed;dy=dy/length*speed;const nx=player.x+dx/1536,ny=player.y+dy/1024;
         if(!keys.size||walkable(region,nx,ny)){player.x=nx;player.y=ny;player.moving=true;}else if(walkable(region,nx,player.y)){player.x=nx;player.moving=true;}else if(walkable(region,player.x,ny)){player.y=ny;player.moving=true;}
         player.direction=Math.abs(dx)>Math.abs(dy)?(dx<0?2:3):(dy<0?1:0);
       }

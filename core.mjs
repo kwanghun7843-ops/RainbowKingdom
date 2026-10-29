@@ -74,6 +74,10 @@ export function pointInPolygon(x,y,vertices) {
   }
   return inside;
 }
+export function normalizedPoint(rect,clientX,clientY) {
+  if(!rect||rect.width<=0||rect.height<=0)return {x:-1,y:-1};
+  return {x:(clientX-rect.left)/rect.width,y:(clientY-rect.top)/rect.height};
+}
 export function walkable(region,x,y) {return pointInPolygon(x,y,poly[region]||poly.hub)&&!(obstacles[region]||[]).some(([l,t,r,b])=>x>l&&x<r&&y>t&&y<b);}
 export function findPath(region,start,target) {
   const cols=40,rows=28, nodes=[];
@@ -96,7 +100,7 @@ export function findPath(region,start,target) {
   return path.reverse();
 }
 
-export function advancePath(player,path,dt,speed=215){
+export function advancePath(player,path,dt,speed=180){
   player.moving=false;if(!path.length)return false;
   const next=path[0],dx=(next.x-player.x)*1536,dy=(next.y-player.y)*1024,d=Math.hypot(dx,dy),step=speed*Math.max(0,dt);
   if(d<=Math.max(step,2)){player.x=next.x;player.y=next.y;path.shift();}

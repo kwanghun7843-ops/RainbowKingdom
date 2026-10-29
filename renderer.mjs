@@ -31,13 +31,13 @@ function pill(ctx,text,x,y,color='#fffdf0',size=20){
   ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x-w/2,y-24,w,42,15);ctx.fill();ctx.fillStyle='#62533b';ctx.textAlign='center';ctx.fillText(text,x,y+4);
 }
 export function sceneEntities(region,state){
-  if(region==='hub')return [...GATES.map((p,index)=>({...p,type:'gate',index,radius:57})),{x:.5,y:.65,type:'tree',radius:85},{x:.37,y:.73,type:'guide',radius:58}];
+  if(region==='hub')return [...GATES.map((p,index)=>({...p,type:'gate',index,radius:78})),...(state.collected.length===7?[{x:.5,y:.65,type:'tree',radius:85}]:[]),{x:.37,y:.73,type:'guide',radius:78}];
   const index=LOCATIONS.findIndex(l=>l.id===region),l=LOCATIONS[index];
   return [{x:l.spot[0],y:l.spot[1],type:'friend',index,radius:72}];
 }
 export function entityAt(region,state,x,y){
   return sceneEntities(region,state).find(e=>{
-    if(e.type==='friend'||e.type==='guide')return Math.abs((e.x-x)*1536)<75&&(y-e.y)*1024>-150&&(y-e.y)*1024<35;
+    if(e.type==='friend'||e.type==='guide')return Math.abs((e.x-x)*1536)<115&&(y-e.y)*1024>-190&&(y-e.y)*1024<70;
     if(e.type==='tree')return x>.36&&x<.64&&y>.34&&y<.67;
     return Math.hypot((e.x-x)*1536,(e.y-y)*1024)<e.radius;
   })||null;
@@ -57,9 +57,9 @@ export function drawScene(ctx,bank,view,time=0) {
   }else if(region==='hub'){
     GATES.forEach((p,i)=>{
       const x=p.x*w,y=p.y*h;
-      ctx.fillStyle='#fffdf0ed';ctx.strokeStyle=state.collected.includes(i)?'#69a788':COLORS[i];ctx.lineWidth=5;ctx.beginPath();ctx.arc(x,y-25,43,0,Math.PI*2);ctx.fill();ctx.stroke();
-      sprite(ctx,bank,'01-rainbow-orbs',i,x,y+9,59);
-      pill(ctx,(state.collected.includes(i)?'✓ ':'')+LOCATIONS[i].name,x,y+58,'#fffdf0',20);
+      ctx.fillStyle='#fffdf0ed';ctx.strokeStyle=state.collected.includes(i)?'#69a788':COLORS[i];ctx.lineWidth=6;ctx.beginPath();ctx.arc(x,y-25,49,0,Math.PI*2);ctx.fill();ctx.stroke();
+      sprite(ctx,bank,'01-rainbow-orbs',i,x,y+13,67);
+      pill(ctx,(state.collected.includes(i)?'✓ ':'')+LOCATIONS[i].name,x,y+67,'#fffdf0',22);
     });
     sprite(ctx,bank,'02-friends',0,.37*w,(.73+Math.sin(time*2)*.003)*h,90);
     pill(ctx,'몽실',.37*w,.73*h+30,'#fffdf0',18);
