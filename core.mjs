@@ -87,6 +87,16 @@ export function normalizedPoint(rect,clientX,clientY) {
   return {x:(clientX-rect.left)/rect.width,y:(clientY-rect.top)/rect.height};
 }
 export function walkable(region,x,y) {return pointInPolygon(x,y,poly[region]||poly.hub)&&!(obstacles[region]||[]).some(([l,t,r,b])=>x>l&&x<r&&y>t&&y<b);}
+export function pathClear(region,a,b) {
+  const distance=Math.hypot((b.x-a.x)*1536,(b.y-a.y)*1024),steps=Math.max(1,Math.ceil(distance/16));
+  for(let i=1;i<=steps;i++){const t=i/steps;if(!walkable(region,a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t))return false;}
+  return true;
+}
+export function smoothPath(region,points) {
+  if(points.length<3)return points.slice();const result=[points[0]];let anchor=0;
+  while(anchor<points.length-1){let next=anchor+1;for(let j=points.length-1;j>anchor+1;j--){if(pathClear(region,points[anchor],points[j])){next=j;break;}}result.push(points[next]);anchor=next;}
+  return result;
+}
 export function findPath(region,start,target) {
   const cols=40,rows=28, nodes=[];
   for(let y=0;y<rows;y++)for(let x=0;x<cols;x++)if(walkable(region,(x+.5)/cols,(y+.5)/rows))nodes.push({x,y,key:y*cols+x});
@@ -104,11 +114,13 @@ export function findPath(region,start,target) {
     }
   }
   if(!previous.has(to.key))return [];
-  const path=[];for(let k=to.key;k!==null;k=previous.get(k))path.push({x:(k%cols+.5)/cols,y:(Math.floor(k/cols)+.5)/rows});
-  return path.reverse();
+  const path=[];for(let k=to.key;k!==null;k=previous.get(k))path.push({x:(k%cols+.5)/cols,y:(Math.floor(k/cols)+.5)/rows});path.reverse();
+  const beginsAtPlayer=walkable(region,start.x,start.y);if(beginsAtPlayer)path.unshift({x:start.x,y:start.y});
+  if(walkable(region,target.x,target.y))path.push({x:target.x,y:target.y});
+  const smoothed=smoothPath(region,path);return beginsAtPlayer?smoothed.slice(1):smoothed;
 }
 
-export function advancePath(player,path,dt,speed=180){
+export function advancePath(player,path,dt,speed=165){
   player.moving=false;if(!path.length)return false;
   const next=path[0],dx=(next.x-player.x)*1536,dy=(next.y-player.y)*1024,d=Math.hypot(dx,dy),step=speed*Math.max(0,dt);
   if(d<=Math.max(step,2)){player.x=next.x;player.y=next.y;path.shift();}

@@ -88,7 +88,7 @@ export function drawScene(ctx,bank,view,time=0) {
   if(view.marker&&player.moving){ctx.strokeStyle='#fffbea';ctx.lineWidth=5;ctx.beginPath();ctx.ellipse(view.marker.x*w,view.marker.y*h,17,10,0,0,Math.PI*2);ctx.stroke();}
   const id=state.hero==='girl'?'18-hero-girl-transparent':'17-hero-boy-transparent';
   let row=player.moving?(player.direction??0):4;
-  let frame=player.moving?Math.floor(time*9)%6:Math.floor(time*1.1)%6;
+  let frame=player.moving?Math.floor((view.motionTime??0)*6)%6:0;
   if(view.celebrate){row=6;frame=Math.floor(time*6)%6;}
   const reference=ASSETS[id].frames[24].sourceRect[3];
   ctx.fillStyle='#6a58351b';ctx.beginPath();ctx.ellipse(player.x*w,player.y*h-1,24,8,0,0,Math.PI*2);ctx.fill();
