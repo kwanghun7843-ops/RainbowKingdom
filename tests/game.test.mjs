@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {LOCATIONS,newState,restoreState,collect,place,missionState,missionAction,findPath,walkable,advancePath,normalizedPoint} from '../core.mjs';
+import {LOCATIONS,newState,restoreState,collect,place,missionState,missionAction,findPath,walkable,pathClear,advancePath,normalizedPoint} from '../core.mjs';
 import {ASSETS,GATES,entityAt,fitSprite} from '../renderer.mjs';
 
 function win(id){const m=missionState(id);
   if(id==='flower'){missionAction(m,'tool');for(let i=0;i<3;i++)missionAction(m,'flower',i);}
   if(id==='orchard')for(let i=0;i<3;i++)missionAction(m,'fruit',i);
   if(id==='hill')for(let i=0;i<3;i++){missionAction(m,'piece',i);missionAction(m,'slot',i);}
-  if(id==='forest'){for(let i=0;i<4;i++)missionAction(m,'material',i);missionAction(m,'repair');}
+  if(id==='forest')for(const material of m.sequence)missionAction(m,'material',material);
   if(id==='pond')for(let i=0;i<3;i++)missionAction(m,'branch',i);
   if(id==='night')for(let i=0;i<6;i++)missionAction(m,'star',i);
   if(id==='castle')for(const symbol of m.sequence)missionAction(m,'symbol',symbol);
@@ -24,14 +24,15 @@ test('repeated taps and incorrect actions do not grant progress',()=>{
   const f=missionState('flower');assert.equal(missionAction(f,'flower',0).gentle,true);assert.equal(f.done.length,0);
   missionAction(f,'tool');missionAction(f,'flower',0);missionAction(f,'flower',0);assert.equal(f.done.length,1);
   const h=missionState('hill');missionAction(h,'piece',0);assert.equal(missionAction(h,'slot',1).gentle,true);assert.equal(h.done.length,0);missionAction(h,'slot',0);assert.equal(h.done.length,1);
-  const nest=missionState('forest');assert.equal(missionAction(nest,'repair').gentle,true);assert.equal(nest.complete,false);
+  const fruit=missionState('orchard');assert.equal(missionAction(fruit,'fruit',1).gentle,true);assert.equal(fruit.done.length,0);
+  const nest=missionState('forest');assert.equal(missionAction(nest,'material',1).gentle,true);assert.equal(nest.done.length,0);
   const music=missionState('castle');assert.equal(missionAction(music,'symbol',0).gentle,true);assert.equal(music.step,0);
 });
-test('drag, swipe, sequence and memory actions complete all seven stages',()=>{
+test('drag, matching, puzzle, ordered taps, swipe and memory complete all stages',()=>{
   const flower=missionState('flower');for(let i=0;i<3;i++)missionAction(flower,'water',i);assert.equal(flower.complete,true);
   const orchard=missionState('orchard');for(let i=0;i<3;i++)missionAction(orchard,'fruit',i);assert.equal(orchard.complete,true);
   const hill=missionState('hill');for(let i=0;i<3;i++)missionAction(hill,'place',i);assert.equal(hill.complete,true);
-  const forest=missionState('forest');for(let i=0;i<4;i++)missionAction(forest,'material',i);missionAction(forest,'repair');assert.equal(forest.complete,true);
+  const forest=missionState('forest');for(const material of forest.sequence)missionAction(forest,'material',material);assert.equal(forest.complete,true);
   const pond=missionState('pond');for(let i=0;i<3;i++)missionAction(pond,'branch',i);assert.equal(pond.complete,true);
   const night=missionState('night');assert.equal(missionAction(night,'star',1).gentle,true);assert.equal(night.done.length,0);for(let i=0;i<6;i++)missionAction(night,'star',i);assert.equal(night.complete,true);
   const castle=missionState('castle');for(const symbol of castle.sequence)missionAction(castle,'symbol',symbol);assert.equal(castle.complete,true);
@@ -44,7 +45,7 @@ test('damaged or incompatible saves cannot finish the game or duplicate balls',(
 test('every region, friend and portal is reachable without walking into obstacles',()=>{
   const start={x:.5,y:.88};
   const routes=GATES.map(p=>['hub',p]).concat([['hub',{x:.5,y:.65}],['hub',{x:.37,y:.73}]],LOCATIONS.map(l=>[l.id,{x:l.spot[0],y:l.spot[1]}]));
-  for(const [region,target] of routes){const path=findPath(region,start,target);assert.ok(path.length>0,region);for(const p of path)assert.equal(walkable(region,p.x,p.y),true,region);
+  for(const [region,target] of routes){const path=findPath(region,start,target);assert.ok(path.length>0,region);assert.ok(path.length<=4,region+' route should be smoothed');for(const [i,p] of path.entries()){assert.equal(walkable(region,p.x,p.y),true,region);assert.equal(pathClear(region,i?path[i-1]:start,p),true,region+' segment must stay on the road');}
     const player={...start,moving:false,direction:0};let steps=0;while(path.length&&steps++<6000)advancePath(player,path,.045);assert.equal(path.length,0,region+' movement must arrive at low frame rate');
   }
 });
@@ -59,6 +60,15 @@ test('all asset files and sprite rectangles exist within PNG bounds',()=>{
   for(const a of Object.values(ASSETS)){assert.ok(fs.existsSync(new URL('../'+a.file,import.meta.url)),a.id);
     for(const f of a.frames||[]){const [x,y,w,h]=f.sourceRect;assert.ok(x>=0&&y>=0&&w>0&&h>0&&x+w<=a.width&&y+h<=a.height,a.id);}}
   assert.equal(Object.keys(ASSETS).length,21);
+});
+test('opening, ending and background music are packaged and referenced by the app',()=>{
+  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  for(const file of ['assets/opening.mp4','assets/ending.mp4','assets/rainbow-kingdom-bgm.mp3']){assert.ok(fs.existsSync(new URL('../'+file,import.meta.url)),file);assert.match(html,new RegExp(file.replace('.','\\.')));}
+});
+test('missions use written guidance without browser speech synthesis',()=>{
+  const game=fs.readFileSync(new URL('../game.mjs',import.meta.url),'utf8');
+  assert.doesNotMatch(game,/speechSynthesis|SpeechSynthesisUtterance|speak\s*\(/);
+  assert.doesNotMatch(game,/다시 듣기/);
 });
 test('all activity pictures fit in their buttons without cropping wide objects',()=>{
   let draw;const ctx={clearRect(){},save(){},restore(){},drawImage(...args){draw=args;}};
