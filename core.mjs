@@ -2,9 +2,9 @@ export const COLORS = ['#ef5659','#f39b35','#f2c941','#78ba69','#4daade','#666cc
 export const NAMES = ['빨강','주황','노랑','초록','파랑','남색','보라'];
 export const LOCATIONS = [
   {id:'flower',name:'꽃밭',friend:'토리',npc:2,asset:'10-flower-clean',props:'03-flower-props',verb:'꽃에 물을 주어요',intro:'꽃이 아직 오므라들었어. 물뿌리개로 꽃에 물을 주면 활짝 필 거야!',thanks:'꽃들이 활짝 피었어! 꽃 속에 빨강 구슬이 있었구나!',icon:'🌷',spot:[.48,.62]},
-  {id:'orchard',name:'과일 정원',friend:'다람',npc:3,asset:'11-orchard-clean',props:'04-orchard-props',verb:'과일을 바구니에 담아요',intro:'바람에 과일이 여기저기 굴러갔어. 과일을 찾아 바구니에 담아 줄래?',thanks:'과일을 모두 찾았어! 바구니 옆에서 주황 구슬도 찾았네!',icon:'🍊',spot:[.53,.64]},
+  {id:'orchard',name:'과일 정원',friend:'다람',npc:3,asset:'11-orchard-clean',props:'04-orchard-props',verb:'같은 과일을 찾아요',intro:'바구니가 찾는 과일이 위에 나타날 거야. 같은 과일을 찾아 톡 눌러 줄래?',thanks:'과일을 모두 찾았어! 바구니 옆에서 주황 구슬도 찾았네!',icon:'🍊',spot:[.53,.64]},
   {id:'hill',name:'햇살 언덕',friend:'삐약',npc:4,asset:'12-hill-clean',props:'05-sun-props',verb:'해님 그림을 맞추어요',intro:'해님 그림 조각이 흩어졌어. 같은 모양의 자리에 조각을 놓아 줄래?',thanks:'해님 그림이 완성됐어! 그림 뒤에 노랑 구슬이 있었구나!',icon:'☀️',spot:[.51,.44]},
-  {id:'forest',name:'숲속 마을',friend:'짹짹',npc:5,asset:'13-forest-clean',props:'06-forest-props',verb:'새 둥지를 고쳐요',intro:'내 둥지가 헐거워졌어. 가지와 잎을 모아 포근한 둥지를 만들어 줄래?',thanks:'둥지가 포근해졌어! 나뭇잎 사이에서 초록 구슬이 반짝여!',icon:'🍃',spot:[.57,.67]},
+  {id:'forest',name:'숲속 마을',friend:'짹짹',npc:5,asset:'13-forest-clean',props:'06-forest-props',verb:'둥지 재료를 순서대로 골라요',intro:'내 둥지가 헐거워졌어. 위에 나타나는 가지와 잎을 순서대로 골라 줄래?',thanks:'둥지가 포근해졌어! 나뭇잎 사이에서 초록 구슬이 반짝여!',icon:'🍃',spot:[.57,.67]},
   {id:'pond',name:'연못',friend:'찰랑',npc:6,asset:'14-pond-clean',props:'07-pond-props',verb:'막힌 물길을 열어요',intro:'나뭇가지가 물길을 막았어. 가지를 옆으로 옮기면 물이 다시 흐를 거야!',thanks:'물이 졸졸 흐른다! 물결 위로 파랑 구슬이 떠올랐어!',icon:'💧',spot:[.40,.64]},
   {id:'night',name:'밤하늘 길',friend:'부우',npc:7,asset:'15-night-clean',props:'08-star-props',verb:'별등을 켜요',intro:'축제 길을 밝혀 줄 별등을 깨워 줄래? 별을 톡 누르면 환하게 켜질 거야.',thanks:'별등이 모두 켜졌어! 마지막 별등에서 남색 구슬을 찾았구나!',icon:'⭐',spot:[.52,.68]},
   {id:'castle',name:'꿈의 성',friend:'코코',npc:8,asset:'16-castle-clean',props:'09-music-props',verb:'오르골을 열어요',intro:'오르골에 그려진 그림과 같은 버튼을 눌러 줘. 안에서 반짝이는 소리가 나!',thanks:'오르골이 다시 노래해! 안에 보라 구슬이 들어 있었구나!',icon:'🎵',spot:[.57,.68]}
@@ -29,7 +29,8 @@ export function place(state,index) {
   state.placed.push(index); state.finished=state.placed.length===7; return true;
 }
 export function missionState(id) {
-  return {id,done:[],selected:null,step:0,complete:false,sequence:id==='castle'?[2,0,1]:[]};
+  const sequences={orchard:[0,1,0],forest:[0,2,1,3],castle:[2,0,1]};
+  return {id,done:[],selected:null,step:0,complete:false,sequence:sequences[id]||[]};
 }
 export function missionAction(m,action,value) {
   if(m.complete) return {changed:false,complete:true};
@@ -40,15 +41,24 @@ export function missionAction(m,action,value) {
     if(action==='flower'){if(m.selected==='water')mark(value,3);else gentle=true;}
     if(action==='water')mark(value,3);
     m.complete=m.done.length===3;
-  } else if(m.id==='orchard') {if(action==='fruit')mark(value,3);m.complete=m.done.length===3;}
+  } else if(m.id==='orchard'&&action==='fruit') {
+    if(Number.isInteger(value)&&value>=0&&value<3&&!m.done.includes(value)){
+      if(value%2===m.sequence[m.step]){mark(value,3);m.step++;}
+      else gentle=true;
+    }
+    m.complete=m.step===m.sequence.length;
+  }
   else if(m.id==='hill') {
     if(action==='piece'&&[0,1,2].includes(value)&&!m.done.includes(value)){m.selected=value;changed=true;}
     if(action==='slot'){if(value===m.selected){mark(value,3);m.selected=null;}else gentle=true;}
     if(action==='place')mark(value,3);
     m.complete=m.done.length===3;
   } else if(m.id==='forest') {
-    if(action==='material')mark(value,4);
-    if(action==='repair'){if(m.done.length===4){m.complete=true;changed=true;}else gentle=true;}
+    if(action==='material'&&Number.isInteger(value)&&value>=0&&value<4&&!m.done.includes(value)){
+      if(value===m.sequence[m.step]){mark(value,4);m.step++;}
+      else gentle=true;
+    }
+    m.complete=m.step===m.sequence.length;
   } else if(m.id==='pond') {if(action==='branch')mark(value,3);m.complete=m.done.length===3;}
   else if(m.id==='night') {
     if(action==='star'){

@@ -10,10 +10,15 @@ let motionTime=0,pendingDirection=null,pendingDirectionTime=0,activeDragCancel=n
 try{sound=localStorage.getItem('rainbow-sound')!=='off';}catch{}
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const openingVideo=$('opening-video');
+const endingVideo=$('ending-video');
 openingVideo.muted=!sound;
 openingVideo.volume=1;
+endingVideo.muted=!sound;
+endingVideo.volume=1;
 $('opening-sound').textContent=sound?'🔊':'🔇';
 $('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');
+$('ending-sound').textContent=sound?'🔊':'🔇';
+$('ending-sound').setAttribute('aria-label',sound?'엔딩 소리 끄기':'엔딩 소리 켜기');
 
 function syncJourneyHeight(){
   const height=$('map-frame').getBoundingClientRect().height;
@@ -40,8 +45,9 @@ function speak(text){if(!sound||!('speechSynthesis'in window))return;window.spee
 function tone(success=false){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();[0,...(success?[.13,.26]:[])].forEach((offset,i)=>{const osc=audio.createOscillator(),g=audio.createGain();osc.type='sine';osc.frequency.value=[523,659,784][i];g.gain.setValueAtTime(.001,audio.currentTime+offset);g.gain.exponentialRampToValueAtTime(.10,audio.currentTime+offset+.025);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+offset+.25);osc.connect(g);g.connect(audio.destination);osc.start(audio.currentTime+offset);osc.stop(audio.currentTime+offset+.28);});}catch{}}
 function screen(name){
   screenName=name;
-  ['opening','title','choose','world'].forEach(n=>{$(n+'-screen').hidden=n!==name;});
+  ['opening','ending','title','choose','world'].forEach(n=>{$(n+'-screen').hidden=n!==name;});
   if(name!=='opening')stopOpening();
+  if(name!=='ending')stopEnding();
   stopWalking(true);
 }
 function stopOpening(){
@@ -69,6 +75,40 @@ function toggleOpening(){
   else {video.pause();$('opening-status').textContent='잠시 멈췄어요';$('opening-play').textContent='▶ 이어 보기';}
 }
 function finishOpening(){screen('title');}
+function stopEnding(){
+  endingVideo.pause();
+  endingVideo.currentTime=0;
+  $('ending-play').textContent='▶ 엔딩 재생';
+  $('ending-status').textContent='우리의 무지개 이야기를 마무리해요';
+}
+async function playEnding(){
+  endingVideo.muted=!sound;
+  endingVideo.volume=1;
+  $('ending-status').textContent='엔딩을 재생하고 있어요';
+  $('ending-play').textContent='❚❚ 잠시 멈추기';
+  try{await endingVideo.play();}catch(error){
+    $('ending-status').textContent='재생 버튼을 한 번 더 눌러 주세요.';
+    $('ending-play').textContent='▶ 엔딩 보기';
+    console.error(error);
+  }
+}
+function toggleEnding(){
+  if(endingVideo.paused)playEnding();
+  else{endingVideo.pause();$('ending-status').textContent='잠시 멈췄어요';$('ending-play').textContent='▶ 이어 보기';}
+}
+function showEnding(){
+  dismiss();
+  stopEnding();
+  screen('ending');
+  bank.load('20-festival-ending').catch(()=>{});
+  playEnding();
+}
+function finishEnding(){
+  if(screenName!=='ending')return;
+  endingVideo.pause();
+  $('ending-status').textContent='무지개 축제를 준비하고 있어요';
+  endFestival();
+}
 function closeModal(){if(activeMission?.complete)return;const fn=closing;closing=null;activeMission=null;stopWalking();$('overlay').hidden=true;$('modal').replaceChildren();if('speechSynthesis'in window)window.speechSynthesis.cancel();if(lastFocus?.isConnected)lastFocus.focus({preventScroll:true});fn?.();}
 function modal(title,onClose=null){stopWalking();if($('overlay').hidden)lastFocus=document.activeElement;closing=onClose;$('modal').replaceChildren();$('overlay').hidden=false;const header=element('div','modal-title-row'),heading=element('h2',null,title);heading.id='modal-title';header.append(heading,button('×','close-button',closeModal));header.lastChild.setAttribute('aria-label','닫기');$('modal').append(header);$('modal').focus({preventScroll:true});return $('modal');}
 function dismiss(){activeMission=null;closing=null;stopWalking();$('overlay').hidden=true;$('modal').replaceChildren();if('speechSynthesis'in window)window.speechSynthesis.cancel();}
@@ -79,7 +119,7 @@ function updateHUD(){
   for(let i=0;i<7;i++){const n=element('div','orb'+(state.collected.includes(i)?'':' missing'));n.title=NAMES[i]+' 구슬 '+(state.collected.includes(i)?'찾음':'아직 찾지 않음');n.setAttribute('aria-label',n.title);n.append(imageCanvas('01-rainbow-orbs',state.collected.includes(i)?i:7,60,60));tray.append(n);}
   tray.append(element('span','orb-count',state.collected.length+' / 7'));
   $('journey-progress').textContent='구슬 '+state.collected.length+'개를 찾았어요';
-  $('tree-button').hidden=state.collected.length!==7;$('tree-button').textContent=state.finished?'🌈 무지개 축제를 다시 봐요':'🌈 무지개 나무로 가요';
+  $('tree-button').hidden=state.collected.length!==7;$('tree-button').textContent=state.finished?'🌈 엔딩을 다시 봐요':'🌈 무지개 나무로 가요';
   const list=$('location-list');list.replaceChildren();
   LOCATIONS.forEach((l,i)=>{const b=button('','location-button'+(region===l.id?' active':''),()=>navigate(l.id));const label=l.name+(state.collected.includes(i)?', 구슬 찾음':'');b.setAttribute('aria-label',label);b.title=label;b.append(element('span','location-emoji',l.icon));const t=element('span','location-copy');t.append(element('strong',null,l.name),element('small',null,l.verb));b.append(t,element('span','check',state.collected.includes(i)?'✓':'›'));list.append(b);});
   const l=LOCATIONS.find(l=>l.id===region);$('place-name').textContent=l?.name||'중앙광장';$('place-title').textContent=l?.name||(festival?'무지개 축제':'중앙광장');$('place-icon').textContent=l?.icon||'🌳';$('hub-button').hidden=region==='hub';
@@ -142,7 +182,19 @@ function openMission(index){
 function act(action,value){
   const current=activeMission;if(!current)return;
   const result=missionAction(current.model,action,value);
-  if(result.gentle){tone();if(current.model.id==='castle'){current.previewing=true;renderMission();scheduleCastlePreview(current);speak('괜찮아. 순서를 다시 보여 줄게.');toast('순서를 다시 보여 줄게요');}else{speak(current.model.id==='night'?'숫자 순서대로 별등을 밝혀 보자.':'반짝이는 자리에 그림을 끌어다 놓아 보자.');toast(current.model.id==='night'?'숫자 순서대로 연결해요':'맞는 자리에 다시 끌어 보세요');}return;}
+  if(result.gentle){
+    tone();
+    if(current.model.id==='castle'){current.previewing=true;renderMission();scheduleCastlePreview(current);speak('괜찮아. 순서를 다시 보여 줄게.');toast('순서를 다시 보여 줄게요');}
+    else{
+      const retry={
+        orchard:['위에 보이는 과일과 같은 과일을 찾아보자.','같은 과일을 톡 눌러요'],
+        forest:['위에 보이는 재료부터 차례대로 눌러 보자.','보이는 순서대로 눌러요'],
+        night:['숫자 순서대로 별등을 밝혀 보자.','1번부터 차례대로 눌러요']
+      }[current.model.id]||['반짝이는 자리에 그림을 끌어다 놓아 보자.','맞는 자리에 다시 끌어 보세요'];
+      speak(retry[0]);toast(retry[1]);
+    }
+    return;
+  }
   if(result.changed)tone();renderMission();
   if(result.complete){tone(true);setTimeout(()=>{if(activeMission===current)reward(current.index);},reduced?200:750);}
 }
@@ -150,7 +202,7 @@ function renderMission(){
   const current=activeMission;if(!current)return;const {index,model:m}=current,l=LOCATIONS[index],P=l.props;
   const remembered=document.activeElement?.getAttribute('aria-label');
   const root=modal(l.name+'에서 놀아요');activeMission=current;
-  const instructions={flower:'물뿌리개를 꽃까지 끌어서 물을 주어요',orchard:'과일을 바구니까지 끌어 담아요',hill:'조각을 같은 모양의 자리에 끌어다 놓아요',forest:'가지와 잎을 둥지까지 옮겨 포근하게 만들어요',pond:'나뭇가지를 물길 밖으로 밀어내요',night:'반짝이를 숫자 순서대로 별등까지 끌어요',castle:current.previewing?'나오는 그림의 순서를 잘 기억해요':'기억한 순서대로 그림 버튼을 눌러요'};
+  const instructions={flower:'물뿌리개를 꽃까지 끌어서 물을 주어요',orchard:'위에 보이는 과일과 같은 과일을 톡 눌러요',hill:'조각을 같은 모양의 자리에 끌어다 놓아요',forest:'위에 보이는 순서대로 가지와 잎을 톡 눌러요',pond:'나뭇가지를 물길 밖으로 밀어내요',night:'별등을 1번부터 차례대로 톡 눌러요',castle:current.previewing?'나오는 그림의 순서를 잘 기억해요':'기억한 순서대로 그림 버튼을 눌러요'};
   root.append(element('p','mission-instruction',m.complete?'참 잘했어요!':instructions[l.id]));const stage=element('div','mission-stage');root.append(stage);
   const obj=(f,x,y,w,h,a,label,cls='',dis=false)=>missionObject(stage,P,f,x,y,w,h,a,label,cls,dis||m.complete);
   if(l.id==='flower'){
@@ -158,9 +210,10 @@ function renderMission(){
     if(!m.complete){const can=obj(0,50,82,25,30,null,'끌어서 물을 주는 물뿌리개','draggable-hint');makeDraggable(can,stage,(x,y)=>{const i=flowers.findIndex((fx,n)=>!m.done.includes(n)&&inBox(x,y,fx,35,13,25));if(i<0)return false;act('water',i);return true;});}
   }
   if(l.id==='orchard'){
-    [[17,23],[82,24],[49,18]].forEach(([x,y],i)=>{if(!m.done.includes(i)){const fruit=obj(i%2,x,y,21,25,null,'바구니에 넣을 과일 '+(i+1),'fruit draggable-hint');makeDraggable(fruit,stage,(px,py)=>{if(!inBox(px,py,50,73,21,25))return false;act('fruit',i);return true;});}});
-    obj(m.complete?3:2,50,73,39,49,null,'과일 바구니','drop-zone',true);
-    if(!m.complete)m.done.forEach((i,n)=>obj(i%2,42+n*8,69,10,15,null,'바구니에 담은 과일','',true));
+    if(!m.complete){stage.append(element('span','mission-callout','이 과일을 찾아요'));obj(m.sequence[m.step],50,22,15,19,null,'지금 찾을 과일','target-choice',true);}
+    [[20,52],[50,55],[80,52]].forEach(([x,y],i)=>{if(!m.done.includes(i))obj(i%2,x,y,23,29,()=>act('fruit',i),'고를 과일 '+(i+1),'fruit choice-object');});
+    obj(m.complete?3:2,50,84,30,30,null,'과일 바구니','basket-object',true);
+    m.done.forEach((i,n)=>obj(i%2,43+n*7,82,9,12,null,'바구니에 담은 과일','',true));
   }
   if(l.id==='hill'){
     obj(m.complete?1:0,50,22,35,40,null,'해님 그림','',true);
@@ -170,8 +223,9 @@ function renderMission(){
     });
   }
   if(l.id==='forest'){
-    [14,38,62,86].forEach((x,i)=>{if(!m.done.includes(i)){const material=obj(i+2,x,22,21,25,null,i<2?'옮길 나뭇가지 '+(i+1):'옮길 나뭇잎 '+(i-1),'draggable-hint');makeDraggable(material,stage,(px,py)=>{if(!inBox(px,py,50,69,24,25))return false;act('material',i);return true;});}});
-    obj(m.complete?1:0,50,69,45,49,null,'고칠 새 둥지','drop-zone',true);
+    if(!m.complete){stage.append(element('span','mission-callout','다음 재료'));obj(m.sequence[m.step]+2,50,22,15,19,null,'다음에 누를 재료','target-choice',true);}
+    [17,39,61,83].forEach((x,i)=>{if(!m.done.includes(i))obj(i+2,x,53,21,26,()=>act('material',i),i<2?'나뭇가지 '+(i+1):'나뭇잎 '+(i-1),'choice-object');});
+    obj(m.complete?1:0,50,84,31,31,null,m.complete?'완성된 새 둥지':'고칠 새 둥지','basket-object',true);
   }
   if(l.id==='pond'){
     stage.style.background='linear-gradient(90deg,#e7f0dc 0 29%,#c6e9f1 29% 68%,#e7f0dc 68%)';
@@ -180,8 +234,7 @@ function renderMission(){
   }
   if(l.id==='night'){
     stage.style.background='linear-gradient(160deg,#454c83,#8582b1)';
-    const stars=[[18,25],[50,22],[82,25],[82,74],[50,77],[18,74]];stars.forEach(([x,y],i)=>{const star=obj(m.done.includes(i)?1:0,x,y,22,38,null,(i+1)+'번째 별등',i===m.done.length?'drop-zone target-star':'',true);const badge=element('span','sequence-badge',String(i+1));star.append(badge);});
-    if(!m.complete){const wand=button('✨','trail-wand',()=>{});wand.setAttribute('aria-label',(m.done.length+1)+'번째 별등으로 끌 반짝이');wand.style.cssText='left:50%;top:50%';stage.append(wand);makeDraggable(wand,stage,(x,y)=>{const target=stars[m.done.length];if(!inBox(x,y,target[0],target[1],13,19))return false;act('star',m.done.length);return true;});}
+    const stars=[[18,25],[50,22],[82,25],[82,74],[50,77],[18,74]];stars.forEach(([x,y],i)=>{const done=m.done.includes(i),star=obj(done?1:0,x,y,22,38,()=>act('star',i),(i+1)+'번째 별등',[done?'done':'choice-object',i===m.done.length?'target-star':''].filter(Boolean).join(' '),done);const badge=element('span','sequence-badge',String(i+1));star.append(badge);});
   }
   if(l.id==='castle'){
     obj(m.complete?1:0,50,45,38,43,null,'오르골','',true);
@@ -191,7 +244,8 @@ function renderMission(){
     if(m.complete)obj(5,83,25,16,28,null,'음악','',true);
   }
   const max=l.id==='night'?6:l.id==='forest'?4:3,count=l.id==='castle'?m.step:m.done.length,dots=element('div','mission-progress');for(let i=0;i<max;i++)dots.append(element('span','progress-dot'+(i<count?' done':'')));dots.setAttribute('aria-label',max+'개 중 '+count+'개 완료');root.append(dots);
-  root.append(element('p','mission-helper',l.id==='castle'?'틀려도 괜찮아요. 그림 순서를 다시 보여 줄게요.':'그림을 손가락으로 누른 채 반짝이는 자리까지 움직여요.'));
+  const helpers={flower:'물뿌리개를 누른 채 꽃까지 움직여요.',orchard:'위에 나온 과일과 같은 그림을 찾아 톡 눌러요.',hill:'조각을 누른 채 같은 모양의 자리로 움직여요.',forest:'위에 나온 재료를 찾아 순서대로 톡 눌러요.',pond:'나뭇가지를 누른 채 물길 바깥쪽으로 밀어요.',night:'숫자를 보고 1번부터 차례대로 톡 눌러요.',castle:'틀려도 괜찮아요. 그림 순서를 다시 보여 줄게요.'};
+  root.append(element('p','mission-helper',helpers[l.id]));
   const controls=element('div','modal-actions');controls.append(button('🔈 다시 듣기','quiet',()=>speak(instructions[l.id])));root.append(controls);
   if(m.complete)root.querySelector('.close-button').disabled=true;
   if(remembered)Array.from(root.querySelectorAll('button')).find(b=>b.getAttribute('aria-label')===remembered&&!b.disabled)?.focus({preventScroll:true});
@@ -202,7 +256,7 @@ function reward(index){
   const controls=element('div','dialog-actions');controls.append(button('광장으로 돌아가요','primary',()=>{dismiss();navigate('hub');}),button('조금 더 둘러봐요','secondary',()=>{dismiss();updateHUD();}));root.append(controls);speak(l.thanks);tone(true);
 }
 function showTree(){
-  if(state.finished){endFestival();return;}if(state.collected.length<7){guide();return;}
+  if(state.finished){showEnding();return;}if(state.collected.length<7){guide();return;}
   const begin=()=>{if(region!=='hub')navigate('hub').then(ok=>{if(ok)treePlacement();});else treePlacement();};
   if(state.placed.length===0)dialogue(1,'후우','구슬을 날려 버려서 미안해. 이번에는 바람을 살살 불어 줄게! 함께 구슬을 무지개 나무에 돌려놓자.',[{text:'함께 돌려놓아요',primary:true,action:begin}]);else begin();
 }
@@ -210,14 +264,14 @@ function treePlacement(){
   const root=modal('무지개를 함께 되찾아요'),guide=element('p','tree-guide','구슬을 하나씩 톡 눌러 나무에 넣어요');root.append(guide);
   const row=element('div','tree-sockets');
   for(let i=0;i<7;i++){
-    const put=state.placed.includes(i),b=button('','socket-button'+(put?' placed':''),()=>{if(!place(state,i))return;save();tone(true);if(state.finished){dismiss();endFestival();}else treePlacement();});
+    const put=state.placed.includes(i),b=button('','socket-button'+(put?' placed':''),()=>{if(!place(state,i))return;save();tone(true);if(state.finished)showEnding();else treePlacement();});
     b.disabled=put;b.setAttribute('aria-label',NAMES[i]+' 구슬 '+(put?'넣었어요':'넣기'));b.append(imageCanvas('01-rainbow-orbs',i,90,90));row.append(b);
   }
   root.append(row,element('p','mission-helper',state.placed.length+'개의 구슬을 돌려놓았어요'));speak('구슬을 하나씩 톡 눌러 무지개 나무에 넣어 줘.');
 }
 async function endFestival(showCard=true){
   const token=++route;busy=true;$('scene-loading').hidden=false;stopWalking();dismiss();
-  try{await bank.load('20-festival-ending');if(token!==route)return;region='hub';festival=true;celebrate=true;player.x=.5;player.y=.86;busy=false;$('scene-loading').hidden=true;updateHUD();tone(true);speak('우리 함께 무지개를 되찾았어요! 이제 친구들과 축제를 즐겨요!');
+  try{await bank.load('20-festival-ending');if(token!==route)return;screen('world');region='hub';festival=true;celebrate=true;player.x=.5;player.y=.86;busy=false;$('scene-loading').hidden=true;updateHUD();tone(true);speak('우리 함께 무지개를 되찾았어요! 이제 친구들과 축제를 즐겨요!');
     if(showCard){const root=modal('무지개 축제가 시작됐어요!'),card=element('div','festival-card');card.append(imageCanvas('02-friends',0,120,120),element('h2',null,'우리 함께 무지개를 되찾았어요!'),element('p',null,'꽃과 과일, 노래와 별빛이 모였어요.\n친구들이 모두 여러분을 기다려요!'));root.append(card);const controls=element('div','dialog-actions');controls.append(button('축제를 구경해요','primary',dismiss),button('처음 화면으로','secondary',()=>{dismiss();screen('title');}));root.append(controls);}
   }catch(error){busy=false;$('scene-loading').hidden=true;toast('축제 그림을 다시 불러올게요');dialogue(0,'몽실','무지개 구슬은 모두 돌아왔어! 축제 그림을 다시 불러와 볼까?',[{text:'다시 불러오기',primary:true,action:()=>endFestival()}]);console.error(error);}
 }
@@ -233,6 +287,10 @@ $('opening-play').addEventListener('click',toggleOpening);$('opening-skip').addE
 $('opening-sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}openingVideo.muted=!sound;openingVideo.volume=1;$('opening-sound').textContent=sound?'🔊':'🔇';$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');$('opening-status').textContent=sound?'소리를 켰어요':'소리를 껐어요';});
 $('opening-video').addEventListener('ended',finishOpening);
 $('opening-video').addEventListener('error',()=>{$('opening-status').textContent='영상을 불러오지 못했어요. 건너뛰기를 눌러 모험을 시작할 수 있어요.';});
+$('ending-play').addEventListener('click',toggleEnding);$('ending-skip').addEventListener('click',finishEnding);
+$('ending-sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}endingVideo.muted=!sound;endingVideo.volume=1;$('ending-sound').textContent=sound?'🔊':'🔇';$('ending-sound').setAttribute('aria-label',sound?'엔딩 소리 끄기':'엔딩 소리 켜기');$('ending-status').textContent=sound?'소리를 켰어요':'소리를 껐어요';});
+$('ending-video').addEventListener('ended',finishEnding);
+$('ending-video').addEventListener('error',()=>{$('ending-status').textContent='영상을 불러오지 못했어요. 축제로 가기를 눌러 주세요.';});
 $('choose-back').addEventListener('click',()=>screen('title'));document.querySelectorAll('[data-hero]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.hero)));
 $('hub-button').addEventListener('click',()=>navigate('hub'));$('tree-button').addEventListener('click',showTree);$('menu-button').addEventListener('click',menu);
 $('action-button').addEventListener('click',()=>region==='hub'?(state.collected.length===7?showTree():guide()):friend(LOCATIONS.findIndex(l=>l.id===region)));
@@ -250,7 +308,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '||e.key==='Enter'){e.preventDefault();$('action-button').click();}
 });
 document.addEventListener('keyup',e=>{const map={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};keys.delete(map[e.key]);});
-window.addEventListener('blur',()=>stopWalking());document.addEventListener('visibilitychange',()=>{if(document.hidden){stopWalking();if('speechSynthesis'in window)window.speechSynthesis.cancel();}});
+window.addEventListener('blur',()=>stopWalking());document.addEventListener('visibilitychange',()=>{if(document.hidden){stopWalking();if('speechSynthesis'in window)window.speechSynthesis.cancel();if(screenName==='ending'&&!endingVideo.paused){endingVideo.pause();$('ending-status').textContent='잠시 멈췄어요';$('ending-play').textContent='▶ 이어 보기';}}});
 function animate(timestamp){
   const time=timestamp/1000,dt=Math.min((timestamp-lastTime)/1000,.045)||0;lastTime=timestamp;
   if(screenName==='world'){

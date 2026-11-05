@@ -22,6 +22,21 @@
       </div>
     </div>
   </section>
+  <section id="ending-screen" class="screen opening-screen ending-screen" hidden>
+    <video id="ending-video" class="opening-video ending-video" playsinline preload="metadata" poster="assets/20-festival-ending.png">
+      <source src="assets/ending.mp4" type="video/mp4">
+      이 브라우저에서는 엔딩 영상을 재생할 수 없어요.
+    </video>
+    <div class="opening-shade" aria-hidden="true"></div>
+    <div class="opening-controls ending-controls">
+      <p id="ending-status" role="status">우리의 무지개 이야기를 마무리해요</p>
+      <div class="opening-actions">
+        <button id="ending-play" class="primary">▶ 엔딩 재생</button>
+        <button id="ending-skip" class="secondary">축제로 가기</button>
+        <button id="ending-sound" class="icon-button opening-sound" aria-label="엔딩 소리 끄기" title="엔딩 소리 켜기·끄기">🔊</button>
+      </div>
+    </div>
+  </section>
   <section id="title-screen" class="screen title-screen" hidden>
     <div class="title-cloud"><span class="eyebrow">꼬마 모험가의 첫 번째 여행</span><h1>잃어버린<br><span>무지개 나라</span></h1><p>친구를 도와 일곱 구슬을 찾아요</p></div>
     <div class="title-actions"><button id="new-game" class="primary" disabled>모험 준비 중…</button><p id="load-status" role="status">무지개 나라를 불러오고 있어요</p><button id="retry-load" class="secondary" hidden>다시 불러오기</button></div>
