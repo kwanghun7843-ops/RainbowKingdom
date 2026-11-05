@@ -11,14 +11,13 @@ try{sound=localStorage.getItem('rainbow-sound')!=='off';}catch{}
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const openingVideo=$('opening-video');
 const endingVideo=$('ending-video');
+const backgroundMusic=$('background-music');
 openingVideo.muted=!sound;
 openingVideo.volume=1;
 endingVideo.muted=!sound;
 endingVideo.volume=1;
-$('opening-sound').textContent=sound?'🔊':'🔇';
-$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');
-$('ending-sound').textContent=sound?'🔊':'🔇';
-$('ending-sound').setAttribute('aria-label',sound?'엔딩 소리 끄기':'엔딩 소리 켜기');
+backgroundMusic.volume=.28;
+backgroundMusic.muted=!sound;
 
 function syncJourneyHeight(){
   const height=$('map-frame').getBoundingClientRect().height;
@@ -41,14 +40,31 @@ function updateFacing(candidate,dt){
 }
 function save(){updateHUD();}
 function toast(text){clearTimeout(toastTimer);$('toast').textContent=text;$('toast').hidden=false;toastTimer=setTimeout(()=>{$('toast').hidden=true;},3300);}
-function speak(text){if(!sound||!('speechSynthesis'in window))return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang='ko-KR';utterance.rate=.87;utterance.pitch=1.1;const voices=window.speechSynthesis.getVoices();const voice=voices.find(v=>v.lang.startsWith('ko'));if(voice)utterance.voice=voice;window.speechSynthesis.speak(utterance);}
 function tone(success=false){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();[0,...(success?[.13,.26]:[])].forEach((offset,i)=>{const osc=audio.createOscillator(),g=audio.createGain();osc.type='sine';osc.frequency.value=[523,659,784][i];g.gain.setValueAtTime(.001,audio.currentTime+offset);g.gain.exponentialRampToValueAtTime(.10,audio.currentTime+offset+.025);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+offset+.25);osc.connect(g);g.connect(audio.destination);osc.start(audio.currentTime+offset);osc.stop(audio.currentTime+offset+.28);});}catch{}}
+function updateSoundUI(){
+  $('opening-sound').textContent=sound?'🔊':'🔇';$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');
+  $('ending-sound').textContent=sound?'🔊':'🔇';$('ending-sound').setAttribute('aria-label',sound?'엔딩 소리 끄기':'엔딩 소리 켜기');
+  $('sound-toggle').textContent=sound?'🔊':'🔇';$('sound-toggle').setAttribute('aria-label',sound?'배경음악과 효과음 끄기':'배경음악과 효과음 켜기');
+}
+function syncBackgroundMusic(){
+  const shouldPlay=sound&&!document.hidden&&['title','choose','world'].includes(screenName);
+  backgroundMusic.muted=!sound;
+  if(shouldPlay)backgroundMusic.play().catch(()=>{});
+  else backgroundMusic.pause();
+}
+function setSound(enabled){
+  sound=enabled;
+  try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}
+  openingVideo.muted=!sound;endingVideo.muted=!sound;backgroundMusic.muted=!sound;
+  updateSoundUI();syncBackgroundMusic();
+}
 function screen(name){
   screenName=name;
   ['opening','ending','title','choose','world'].forEach(n=>{$(n+'-screen').hidden=n!==name;});
   if(name!=='opening')stopOpening();
   if(name!=='ending')stopEnding();
   stopWalking(true);
+  syncBackgroundMusic();
 }
 function stopOpening(){
   const video=openingVideo;
@@ -109,10 +125,10 @@ function finishEnding(){
   $('ending-status').textContent='무지개 축제를 준비하고 있어요';
   endFestival();
 }
-function closeModal(){if(activeMission?.complete)return;const fn=closing;closing=null;activeMission=null;stopWalking();$('overlay').hidden=true;$('modal').replaceChildren();if('speechSynthesis'in window)window.speechSynthesis.cancel();if(lastFocus?.isConnected)lastFocus.focus({preventScroll:true});fn?.();}
+function closeModal(){if(activeMission?.complete)return;const fn=closing;closing=null;activeMission=null;stopWalking();$('overlay').hidden=true;$('modal').replaceChildren();if(lastFocus?.isConnected)lastFocus.focus({preventScroll:true});fn?.();}
 function modal(title,onClose=null){stopWalking();if($('overlay').hidden)lastFocus=document.activeElement;closing=onClose;$('modal').replaceChildren();$('overlay').hidden=false;const header=element('div','modal-title-row'),heading=element('h2',null,title);heading.id='modal-title';header.append(heading,button('×','close-button',closeModal));header.lastChild.setAttribute('aria-label','닫기');$('modal').append(header);$('modal').focus({preventScroll:true});return $('modal');}
-function dismiss(){activeMission=null;closing=null;stopWalking();$('overlay').hidden=true;$('modal').replaceChildren();if('speechSynthesis'in window)window.speechSynthesis.cancel();}
-function dialogue(npc,name,text,actions){const m=modal(name+'의 이야기');const body=element('div','dialog-body'),portrait=imageCanvas('02-friends',npc);portrait.className='npc-portrait';const words=element('div','dialog-text');words.append(element('h3',null,name),element('p',null,text));body.append(portrait,words);m.append(body);const controls=element('div','dialog-actions');controls.append(button('🔈 다시 듣기','secondary',()=>speak(text)));for(const a of actions)controls.append(button(a.text,a.primary?'primary':'secondary',()=>{dismiss();a.action();}));m.append(controls);speak(text);}
+function dismiss(){activeMission=null;closing=null;stopWalking();$('overlay').hidden=true;$('modal').replaceChildren();}
+function dialogue(npc,name,text,actions){const m=modal(name+'의 이야기');const body=element('div','dialog-body'),portrait=imageCanvas('02-friends',npc);portrait.className='npc-portrait';const words=element('div','dialog-text');words.append(element('h3',null,name),element('p',null,text));body.append(portrait,words);m.append(body);const controls=element('div','dialog-actions');for(const a of actions)controls.append(button(a.text,a.primary?'primary':'secondary',()=>{dismiss();a.action();}));m.append(controls);}
 function intro(){dialogue(1,'후우','축제를 돕고 싶어서 바람을 불었는데, 일곱 무지개 구슬이 멀리 날아갔어. 구슬을 함께 찾아줄래?',[{text:'함께 찾아요!',primary:true,action:()=>dialogue(0,'몽실','친구들을 만나서 도와주자! 구슬을 모두 모으면 광장의 무지개 나무에 돌려놓을 수 있어. 가고 싶은 곳을 톡 눌러 봐!',[{text:'모험을 떠나요',primary:true,action:()=>{}}])}]);}
 function updateHUD(){
   const tray=$('orb-tray');tray.replaceChildren();
@@ -125,7 +141,7 @@ function updateHUD(){
   const l=LOCATIONS.find(l=>l.id===region);$('place-name').textContent=l?.name||'중앙광장';$('place-title').textContent=l?.name||(festival?'무지개 축제':'중앙광장');$('place-icon').textContent=l?.icon||'🌳';$('hub-button').hidden=region==='hub';
   $('action-button').textContent=region==='hub'?(state.collected.length===7?'무지개 나무로 가요':'몽실과 이야기하기'):(state.collected.includes(LOCATIONS.indexOf(l))?'친구와 이야기하기':'친구를 도와요');
   $('map-hint').textContent=festival?'무지개 나라에 색이 돌아왔어요!':region==='hub'?'장소 그림을 톡 누르면 걸어가요':'친구를 톡 누르거나 길을 걸어 봐요';
-  $('sound-toggle').textContent=sound?'🔊':'🔇';$('sound-toggle').setAttribute('aria-label',sound?'소리 끄기':'소리 켜기');
+  updateSoundUI();
 }
 async function boot(){
   const attempt=++loadAttempt;$('new-game').disabled=true;$('retry-load').hidden=true;$('new-game').textContent='모험 준비 중…';
@@ -144,7 +160,7 @@ async function navigate(id){
   const l=LOCATIONS.find(l=>l.id===id);
   try{await Promise.all((l?[l.asset,l.props]:['background-hub']).map(k=>bank.load(k)));if(token!==route)return;
     region=l?id:'hub';festival=false;celebrate=false;player.x=.50;player.y=.88;player.direction=0;motionTime=0;pendingDirection=null;pendingDirectionTime=0;lastTime=performance.now();busy=false;$('scene-loading').hidden=true;updateHUD();canvas.focus({preventScroll:true});
-    if(l){tone();toast(l.name+'에 도착했어요!');speak(l.name+'에 도착했어. '+l.friend+'를 만나 보자!');}return true;
+    if(l){tone();toast(l.name+'에 도착했어요! '+l.friend+'를 만나 보세요.');}return true;
   }catch(error){if(token!==route)return false;busy=false;$('scene-loading').hidden=true;dialogue(0,'몽실','이곳의 그림을 아직 불러오지 못했어. 다시 불러와 볼까?',[{text:'다시 불러오기',primary:true,action:()=>navigate(id)},{text:'광장으로',action:()=>navigate('hub')}]);console.error(error);return false;}
 }
 function walkTo(x,y,onArrive=null){if(busy||!$('overlay').hidden)return;const p=findPath(region,player,{x,y});if(!p.length){toast('가까운 길을 톡 눌러 주세요');return;}path=p;arrival=onArrive;marker=p.at(-1);}
@@ -174,24 +190,24 @@ function makeDraggable(node,stage,onDrop){
 }
 function inBox(x,y,cx,cy,rx,ry){return Math.abs(x-cx)<=rx&&Math.abs(y-cy)<=ry;}
 function scheduleCastlePreview(current){
-  clearTimeout(current.previewTimer);current.previewTimer=setTimeout(()=>{if(activeMission!==current)return;current.previewing=false;renderMission();speak('방금 본 별, 달, 구름의 순서를 기억해서 눌러 줘.');},reduced?900:2600);
+  clearTimeout(current.previewTimer);current.previewTimer=setTimeout(()=>{if(activeMission!==current)return;current.previewing=false;renderMission();toast('방금 본 순서대로 그림을 눌러 주세요');},reduced?900:2600);
 }
 function openMission(index){
-  const l=LOCATIONS[index],current={index,model:missionState(l.id),previewing:l.id==='castle',previewTimer:null};activeMission=current;renderMission();if(current.previewing)scheduleCastlePreview(current);speak(l.intro);
+  const l=LOCATIONS[index],current={index,model:missionState(l.id),previewing:l.id==='castle',previewTimer:null};activeMission=current;renderMission();if(current.previewing)scheduleCastlePreview(current);
 }
 function act(action,value){
   const current=activeMission;if(!current)return;
   const result=missionAction(current.model,action,value);
   if(result.gentle){
     tone();
-    if(current.model.id==='castle'){current.previewing=true;renderMission();scheduleCastlePreview(current);speak('괜찮아. 순서를 다시 보여 줄게.');toast('순서를 다시 보여 줄게요');}
+    if(current.model.id==='castle'){current.previewing=true;renderMission();scheduleCastlePreview(current);toast('괜찮아요. 순서를 다시 보여 줄게요');}
     else{
       const retry={
-        orchard:['위에 보이는 과일과 같은 과일을 찾아보자.','같은 과일을 톡 눌러요'],
-        forest:['위에 보이는 재료부터 차례대로 눌러 보자.','보이는 순서대로 눌러요'],
-        night:['숫자 순서대로 별등을 밝혀 보자.','1번부터 차례대로 눌러요']
-      }[current.model.id]||['반짝이는 자리에 그림을 끌어다 놓아 보자.','맞는 자리에 다시 끌어 보세요'];
-      speak(retry[0]);toast(retry[1]);
+        orchard:'같은 과일을 톡 눌러요',
+        forest:'보이는 순서대로 눌러요',
+        night:'1번부터 차례대로 눌러요'
+      }[current.model.id]||'맞는 자리에 다시 끌어 보세요';
+      toast(retry);
     }
     return;
   }
@@ -246,14 +262,13 @@ function renderMission(){
   const max=l.id==='night'?6:l.id==='forest'?4:3,count=l.id==='castle'?m.step:m.done.length,dots=element('div','mission-progress');for(let i=0;i<max;i++)dots.append(element('span','progress-dot'+(i<count?' done':'')));dots.setAttribute('aria-label',max+'개 중 '+count+'개 완료');root.append(dots);
   const helpers={flower:'물뿌리개를 누른 채 꽃까지 움직여요.',orchard:'위에 나온 과일과 같은 그림을 찾아 톡 눌러요.',hill:'조각을 누른 채 같은 모양의 자리로 움직여요.',forest:'위에 나온 재료를 찾아 순서대로 톡 눌러요.',pond:'나뭇가지를 누른 채 물길 바깥쪽으로 밀어요.',night:'숫자를 보고 1번부터 차례대로 톡 눌러요.',castle:'틀려도 괜찮아요. 그림 순서를 다시 보여 줄게요.'};
   root.append(element('p','mission-helper',helpers[l.id]));
-  const controls=element('div','modal-actions');controls.append(button('🔈 다시 듣기','quiet',()=>speak(instructions[l.id])));root.append(controls);
   if(m.complete)root.querySelector('.close-button').disabled=true;
   if(remembered)Array.from(root.querySelectorAll('button')).find(b=>b.getAttribute('aria-label')===remembered&&!b.disabled)?.focus({preventScroll:true});
 }
 function reward(index){
   const l=LOCATIONS[index],first=collect(state,index);save();activeMission=null;
   const root=modal('무지개 구슬을 찾았어요!',()=>{}),body=element('div','reward'),ball=imageCanvas('01-rainbow-orbs',index,250,250);ball.className='reward-orb';body.append(ball,element('h2',null,NAMES[index]+' 구슬을 찾았어요!'),element('p',null,l.thanks));body.append(element('small',null,first?'우리의 무지개에 색이 하나 더 돌아왔어요':'이미 찾은 구슬이에요. 친구와 다시 놀았어요!'));root.append(body);
-  const controls=element('div','dialog-actions');controls.append(button('광장으로 돌아가요','primary',()=>{dismiss();navigate('hub');}),button('조금 더 둘러봐요','secondary',()=>{dismiss();updateHUD();}));root.append(controls);speak(l.thanks);tone(true);
+  const controls=element('div','dialog-actions');controls.append(button('광장으로 돌아가요','primary',()=>{dismiss();navigate('hub');}),button('조금 더 둘러봐요','secondary',()=>{dismiss();updateHUD();}));root.append(controls);tone(true);
 }
 function showTree(){
   if(state.finished){showEnding();return;}if(state.collected.length<7){guide();return;}
@@ -267,11 +282,11 @@ function treePlacement(){
     const put=state.placed.includes(i),b=button('','socket-button'+(put?' placed':''),()=>{if(!place(state,i))return;save();tone(true);if(state.finished)showEnding();else treePlacement();});
     b.disabled=put;b.setAttribute('aria-label',NAMES[i]+' 구슬 '+(put?'넣었어요':'넣기'));b.append(imageCanvas('01-rainbow-orbs',i,90,90));row.append(b);
   }
-  root.append(row,element('p','mission-helper',state.placed.length+'개의 구슬을 돌려놓았어요'));speak('구슬을 하나씩 톡 눌러 무지개 나무에 넣어 줘.');
+  root.append(row,element('p','mission-helper',state.placed.length+'개의 구슬을 돌려놓았어요'));
 }
 async function endFestival(showCard=true){
   const token=++route;busy=true;$('scene-loading').hidden=false;stopWalking();dismiss();
-  try{await bank.load('20-festival-ending');if(token!==route)return;screen('world');region='hub';festival=true;celebrate=true;player.x=.5;player.y=.86;busy=false;$('scene-loading').hidden=true;updateHUD();tone(true);speak('우리 함께 무지개를 되찾았어요! 이제 친구들과 축제를 즐겨요!');
+  try{await bank.load('20-festival-ending');if(token!==route)return;screen('world');region='hub';festival=true;celebrate=true;player.x=.5;player.y=.86;busy=false;$('scene-loading').hidden=true;updateHUD();tone(true);
     if(showCard){const root=modal('무지개 축제가 시작됐어요!'),card=element('div','festival-card');card.append(imageCanvas('02-friends',0,120,120),element('h2',null,'우리 함께 무지개를 되찾았어요!'),element('p',null,'꽃과 과일, 노래와 별빛이 모였어요.\n친구들이 모두 여러분을 기다려요!'));root.append(card);const controls=element('div','dialog-actions');controls.append(button('축제를 구경해요','primary',dismiss),button('처음 화면으로','secondary',()=>{dismiss();screen('title');}));root.append(controls);}
   }catch(error){busy=false;$('scene-loading').hidden=true;toast('축제 그림을 다시 불러올게요');dialogue(0,'몽실','무지개 구슬은 모두 돌아왔어! 축제 그림을 다시 불러와 볼까?',[{text:'다시 불러오기',primary:true,action:()=>endFestival()}]);console.error(error);}
 }
@@ -284,17 +299,17 @@ function confirmNew(){screen('choose');}
 
 $('new-game').addEventListener('click',confirmNew);$('retry-load').addEventListener('click',boot);
 $('opening-play').addEventListener('click',toggleOpening);$('opening-skip').addEventListener('click',finishOpening);
-$('opening-sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}openingVideo.muted=!sound;openingVideo.volume=1;$('opening-sound').textContent=sound?'🔊':'🔇';$('opening-sound').setAttribute('aria-label',sound?'오프닝 소리 끄기':'오프닝 소리 켜기');$('opening-status').textContent=sound?'소리를 켰어요':'소리를 껐어요';});
+$('opening-sound').addEventListener('click',()=>{setSound(!sound);openingVideo.volume=1;$('opening-status').textContent=sound?'소리를 켰어요':'소리를 껐어요';});
 $('opening-video').addEventListener('ended',finishOpening);
 $('opening-video').addEventListener('error',()=>{$('opening-status').textContent='영상을 불러오지 못했어요. 건너뛰기를 눌러 모험을 시작할 수 있어요.';});
 $('ending-play').addEventListener('click',toggleEnding);$('ending-skip').addEventListener('click',finishEnding);
-$('ending-sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}endingVideo.muted=!sound;endingVideo.volume=1;$('ending-sound').textContent=sound?'🔊':'🔇';$('ending-sound').setAttribute('aria-label',sound?'엔딩 소리 끄기':'엔딩 소리 켜기');$('ending-status').textContent=sound?'소리를 켰어요':'소리를 껐어요';});
+$('ending-sound').addEventListener('click',()=>{setSound(!sound);endingVideo.volume=1;$('ending-status').textContent=sound?'소리를 켰어요':'소리를 껐어요';});
 $('ending-video').addEventListener('ended',finishEnding);
 $('ending-video').addEventListener('error',()=>{$('ending-status').textContent='영상을 불러오지 못했어요. 축제로 가기를 눌러 주세요.';});
 $('choose-back').addEventListener('click',()=>screen('title'));document.querySelectorAll('[data-hero]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.hero)));
 $('hub-button').addEventListener('click',()=>navigate('hub'));$('tree-button').addEventListener('click',showTree);$('menu-button').addEventListener('click',menu);
 $('action-button').addEventListener('click',()=>region==='hub'?(state.collected.length===7?showTree():guide()):friend(LOCATIONS.findIndex(l=>l.id===region)));
-$('sound-toggle').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('rainbow-sound',sound?'on':'off');}catch{}if(!sound&&'speechSynthesis'in window)window.speechSynthesis.cancel();updateHUD();});
+$('sound-toggle').addEventListener('click',()=>{setSound(!sound);updateHUD();toast(sound?'배경음악과 효과음을 켰어요':'배경음악과 효과음을 껐어요');});
 $('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement){await document.exitFullscreen();return;}await document.documentElement.requestFullscreen();try{await window.screen.orientation?.lock('landscape');}catch{}}catch{toast('태블릿을 가로로 돌리면 더 넓게 보여요');}});
 function canvasPoint(event){return normalizedPoint(canvas.getBoundingClientRect(),event.clientX,event.clientY);}
 canvas.addEventListener('pointerdown',e=>{if(screenName!=='world'||busy||!$('overlay').hidden||festival||worldPointerId!==null)return;worldPointerId=e.pointerId;try{canvas.setPointerCapture(e.pointerId);}catch{}e.preventDefault();canvas.focus({preventScroll:true});const p=canvasPoint(e);if(p.x<0||p.y<0||p.x>1||p.y>1)return;const target=entityAt(region,state,p.x,p.y);walkTo(target?.x??p.x,target?.y??p.y,target?()=>interact(target):null);});
@@ -308,7 +323,7 @@ document.addEventListener('keydown',e=>{
   if(e.key===' '||e.key==='Enter'){e.preventDefault();$('action-button').click();}
 });
 document.addEventListener('keyup',e=>{const map={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};keys.delete(map[e.key]);});
-window.addEventListener('blur',()=>stopWalking());document.addEventListener('visibilitychange',()=>{if(document.hidden){stopWalking();if('speechSynthesis'in window)window.speechSynthesis.cancel();if(screenName==='ending'&&!endingVideo.paused){endingVideo.pause();$('ending-status').textContent='잠시 멈췄어요';$('ending-play').textContent='▶ 이어 보기';}}});
+window.addEventListener('blur',()=>stopWalking());document.addEventListener('visibilitychange',()=>{if(document.hidden){stopWalking();backgroundMusic.pause();if(screenName==='ending'&&!endingVideo.paused){endingVideo.pause();$('ending-status').textContent='잠시 멈췄어요';$('ending-play').textContent='▶ 이어 보기';}}else syncBackgroundMusic();});
 function animate(timestamp){
   const time=timestamp/1000,dt=Math.min((timestamp-lastTime)/1000,.045)||0;lastTime=timestamp;
   if(screenName==='world'){
@@ -327,4 +342,4 @@ function animate(timestamp){
   }
   requestAnimationFrame(animate);
 }
-requestAnimationFrame(animate);boot();
+updateSoundUI();requestAnimationFrame(animate);boot();
